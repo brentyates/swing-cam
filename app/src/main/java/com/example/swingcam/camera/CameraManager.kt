@@ -565,11 +565,28 @@ class CameraManager(
             object : ImageCapture.OnImageCapturedCallback() {
                 override fun onCaptureSuccess(image: ImageProxy) {
                     try {
-                        // Convert YUV_420_888 ImageProxy to JPEG
-                        val jpegBytes = imageProxyToJpeg(image)
+                        // Check image format - might be JPEG already or YUV
+                        val jpegBytes = when (image.format) {
+                            android.graphics.ImageFormat.JPEG -> {
+                                // Already JPEG, just extract bytes
+                                val buffer = image.planes[0].buffer
+                                val bytes = ByteArray(buffer.remaining())
+                                buffer.get(bytes)
+                                bytes
+                            }
+                            android.graphics.ImageFormat.YUV_420_888 -> {
+                                // Convert YUV to JPEG
+                                imageProxyToJpeg(image)
+                            }
+                            else -> {
+                                Log.w(TAG, "Unexpected image format: ${image.format}")
+                                null
+                            }
+                        }
+
                         if (jpegBytes != null) {
                             cachedPreviewFrame = jpegBytes
-                            Log.d(TAG, "Preview frame captured: ${jpegBytes.size / 1024}KB")
+                            Log.d(TAG, "Preview frame captured: ${jpegBytes.size / 1024}KB (format: ${image.format})")
                         } else {
                             Log.w(TAG, "Failed to convert image to JPEG")
                         }
