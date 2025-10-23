@@ -101,7 +101,7 @@ class CameraManager(
             // Setup image capture for preview snapshots
             imageCapture = ImageCapture.Builder()
                 .setCaptureMode(ImageCapture.CAPTURE_MODE_MINIMIZE_LATENCY)
-                .setJpegQuality(60) // Lower quality for faster preview
+                .setJpegQuality(75) // Increased quality to 75% for better preview consistency
                 .build()
             Log.d(TAG, "Image capture configured")
 
