@@ -421,6 +421,11 @@ class MainActivity : AppCompatActivity() {
                 return repository.deleteAllRecordings()
             }
 
+            override fun getVideoFile(filename: String): File? {
+                val file = repository.getVideoFile(filename)
+                return if (file.exists()) file else null
+            }
+
             override suspend fun armLaunchMonitor(): Map<String, Any> {
                 return cameraManager.armLaunchMonitor(repository.recordingsDir)
             }

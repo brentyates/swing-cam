@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>SwingCam Remote View</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <h1>SwingCam Remote View</h1>
+            <div class="status-indicator">
+                <span class="status-dot" id="statusDot"></span>
+                <span class="status-text" id="statusText">Connecting...</span>
+            </div>
+        </header>
+
+        <!-- Main Video Player Section -->
+        <main class="main-content">
+            <div class="video-container" id="videoContainer">
+                <video
+                    id="videoPlayer"
+                    class="video-player"
+                    controls
+                    loop
+                    playsinline
+                    preload="metadata">
+                    Your browser does not support the video tag.
+                </video>
+                <div class="no-video-message" id="noVideoMessage">
+                    <p>No recordings available</p>
+                    <p class="subtitle">Trigger a recording to get started</p>
+                </div>
+                <div class="loading-message" id="loadingMessage">
+                    <p>Loading recordings...</p>
+                </div>
+            </div>
+
+            <!-- Video Info -->
+            <div class="video-info" id="videoInfo" style="display: none;">
+                <span class="video-title" id="videoTitle"></span>
+                <span class="video-duration" id="videoDuration"></span>
+            </div>
+
+            <!-- Live Preview (Phase 4 - Placeholder) -->
+            <div class="preview-section" id="previewSection" style="display: none;">
+                <div class="preview-header">
+                    <h3>Live Camera Preview</h3>
+                    <button class="preview-toggle" id="previewToggle">Enable Preview</button>
+                </div>
+                <div class="preview-container" id="previewContainer">
+                    <img id="previewImage" class="preview-image" alt="Camera preview">
+                </div>
+            </div>
+
+            <!-- Recordings List -->
+            <div class="recordings-section">
+                <h2>Recent Recordings</h2>
+                <div class="recordings-list" id="recordingsList">
+                    <p class="loading-text">Loading recordings...</p>
+                </div>
+            </div>
+        </main>
+
+        <!-- Footer -->
+        <footer class="footer">
+            <p>SwingCam &copy; 2024</p>
+        </footer>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
