@@ -3,6 +3,8 @@ package com.example.swingcam.camera
 import android.content.Context
 import android.util.Log
 import androidx.camera.core.CameraSelector
+import androidx.camera.core.ImageCapture
+import androidx.camera.core.ImageCaptureException
 import androidx.camera.core.Preview
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.video.FileOutputOptions
@@ -23,6 +25,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import java.io.ByteArrayOutputStream
 import java.io.File
 import java.util.concurrent.Executors
 
@@ -46,9 +49,14 @@ class CameraManager(
 ) {
 
     private var videoCapture: VideoCapture<Recorder>? = null
+    private var imageCapture: ImageCapture? = null
     private var activeRecording: Recording? = null
     private val executor = Executors.newSingleThreadExecutor()
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
+    // Cached preview frame for web interface
+    @Volatile
+    private var cachedPreviewFrame: ByteArray? = null
 
     var isRecording = false
         private set
@@ -88,6 +96,13 @@ class CameraManager(
             videoCapture = VideoCapture.withOutput(recorder)
             Log.d(TAG, "Video capture configured")
 
+            // Setup image capture for preview snapshots
+            imageCapture = ImageCapture.Builder()
+                .setCaptureMode(ImageCapture.CAPTURE_MODE_MINIMIZE_LATENCY)
+                .setJpegQuality(60) // Lower quality for faster preview
+                .build()
+            Log.d(TAG, "Image capture configured")
+
             // Setup preview
             val preview = Preview.Builder().build().also {
                 it.setSurfaceProvider(previewView.surfaceProvider)
@@ -101,15 +116,16 @@ class CameraManager(
                 cameraProvider.unbindAll()
                 Log.d(TAG, "Unbound all previous camera instances")
 
-                // Bind BOTH preview and video capture together
+                // Bind preview, video capture, and image capture together
                 val camera = cameraProvider.bindToLifecycle(
                     lifecycleOwner,
                     cameraSelector,
                     preview,
-                    videoCapture
+                    videoCapture,
+                    imageCapture
                 )
 
-                Log.d(TAG, "Camera setup complete with preview and video capture. Camera ID: ${camera.cameraInfo.cameraSelector}")
+                Log.d(TAG, "Camera setup complete with preview, video capture, and image capture. Camera ID: ${camera.cameraInfo.cameraSelector}")
             } catch (e: Exception) {
                 Log.e(TAG, "Camera binding failed", e)
                 throw e
@@ -189,6 +205,7 @@ class CameraManager(
         lmState = LMState.IDLE
         lmTempFile?.delete()
         lmTempFile = null
+        cachedPreviewFrame = null
         scope.cancel() // Cancel any background extraction jobs
         executor.shutdown()
     }
@@ -528,6 +545,70 @@ class CameraManager(
             Log.e(TAG, "Extraction failed", e)
             return false
         }
+    }
+
+    /**
+     * Capture a preview frame for the web interface
+     * This captures a JPEG snapshot and caches it in memory
+     */
+    fun capturePreviewFrame() {
+        val imageCaptureInstance = imageCapture
+        if (imageCaptureInstance == null) {
+            Log.w(TAG, "Image capture not initialized, cannot capture preview frame")
+            return
+        }
+
+        imageCaptureInstance.takePicture(
+            executor,
+            object : ImageCapture.OnImageCapturedCallback() {
+                override fun onCaptureSuccess(image: androidx.camera.core.ImageProxy) {
+                    try {
+                        // Convert ImageProxy to JPEG bytes
+                        val buffer = image.planes[0].buffer
+                        val bytes = ByteArray(buffer.remaining())
+                        buffer.get(bytes)
+
+                        // If the image is not already JPEG, we need to convert it
+                        // For simplicity, we'll use in-memory JPEG encoding
+                        val outputStream = ByteArrayOutputStream()
+
+                        // Create a bitmap from the YUV image
+                        val yuvImage = android.graphics.YuvImage(
+                            bytes,
+                            android.graphics.ImageFormat.NV21,
+                            image.width,
+                            image.height,
+                            null
+                        )
+
+                        yuvImage.compressToJpeg(
+                            android.graphics.Rect(0, 0, image.width, image.height),
+                            60, // JPEG quality
+                            outputStream
+                        )
+
+                        cachedPreviewFrame = outputStream.toByteArray()
+
+                        image.close()
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Failed to process preview frame", e)
+                        image.close()
+                    }
+                }
+
+                override fun onError(exception: ImageCaptureException) {
+                    Log.e(TAG, "Failed to capture preview frame: ${exception.message}")
+                }
+            }
+        )
+    }
+
+    /**
+     * Get the latest cached preview frame as JPEG bytes
+     * Returns null if no frame has been captured yet
+     */
+    fun getLatestPreviewFrame(): ByteArray? {
+        return cachedPreviewFrame
     }
 
     companion object {

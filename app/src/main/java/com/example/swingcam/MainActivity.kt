@@ -426,6 +426,13 @@ class MainActivity : AppCompatActivity() {
                 return if (file.exists()) file else null
             }
 
+            override fun captureAndGetPreviewFrame(): ByteArray? {
+                // Trigger a new frame capture
+                cameraManager.capturePreviewFrame()
+                // Return the cached frame (may be from previous capture)
+                return cameraManager.getLatestPreviewFrame()
+            }
+
             override suspend fun armLaunchMonitor(): Map<String, Any> {
                 return cameraManager.armLaunchMonitor(repository.recordingsDir)
             }

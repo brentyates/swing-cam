@@ -47,6 +47,7 @@ class HttpServerService : Service() {
         fun deleteRecording(filename: String): Boolean
         fun deleteAllRecordings(): Boolean
         fun getVideoFile(filename: String): File?
+        fun captureAndGetPreviewFrame(): ByteArray?
 
         // Launch Monitor API
         suspend fun armLaunchMonitor(): Map<String, Any>
@@ -311,6 +312,34 @@ class HttpServerService : Service() {
                             } else {
                                 call.respond(HttpStatusCode.ServiceUnavailable,
                                     mapOf("status" to "error", "message" to "Service not ready"))
+                            }
+                        }
+
+                        // Live camera preview endpoint (Phase 4)
+                        get("/api/camera/preview") {
+                            val callback = serverCallback
+                            if (callback == null) {
+                                call.respond(HttpStatusCode.ServiceUnavailable,
+                                    mapOf("error" to "Service not ready"))
+                                return@get
+                            }
+
+                            try {
+                                val jpegBytes = callback.captureAndGetPreviewFrame()
+                                if (jpegBytes != null && jpegBytes.isNotEmpty()) {
+                                    call.response.header("Content-Type", "image/jpeg")
+                                    call.response.header("Cache-Control", "no-cache, no-store, must-revalidate")
+                                    call.response.header("Pragma", "no-cache")
+                                    call.response.header("Expires", "0")
+                                    call.respondBytes(jpegBytes, ContentType.Image.JPEG)
+                                } else {
+                                    // No frame available yet, return placeholder or error
+                                    call.respond(HttpStatusCode.NoContent)
+                                }
+                            } catch (e: Exception) {
+                                Log.e(TAG, "Error capturing preview frame", e)
+                                call.respond(HttpStatusCode.InternalServerError,
+                                    mapOf("error" to "Failed to capture preview"))
                             }
                         }
                     }
