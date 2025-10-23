@@ -40,32 +40,28 @@
         android:layout_height="wrap_content"
         android:orientation="horizontal">
 
-        <Button
+        <ImageButton
             android:id="@+id/playButton"
             android:layout_width="60dp"
             android:layout_height="36dp"
-            android:text="▶"
-            android:textSize="16sp"
-            android:backgroundTint="#567D46"
+            android:src="@drawable/ic_play"
+            android:background="@drawable/button_rounded_green"
             android:layout_marginEnd="8dp"
-            android:gravity="center"
-            android:insetTop="0dp"
-            android:insetBottom="0dp"
-            android:paddingTop="0dp"
-            android:paddingBottom="0dp" />
+            android:contentDescription="Play recording"
+            android:scaleType="centerInside"
+            android:tint="#FFFFFF"
+            android:padding="6dp" />
 
-        <Button
+        <ImageButton
             android:id="@+id/deleteButton"
             android:layout_width="60dp"
             android:layout_height="36dp"
-            android:text="✕"
-            android:textSize="16sp"
-            android:backgroundTint="#B71C1C"
-            android:gravity="center"
-            android:insetTop="0dp"
-            android:insetBottom="0dp"
-            android:paddingTop="0dp"
-            android:paddingBottom="0dp" />
+            android:src="@drawable/ic_close"
+            android:background="@drawable/button_rounded_red"
+            android:contentDescription="Delete recording"
+            android:scaleType="centerInside"
+            android:tint="#FFFFFF"
+            android:padding="6dp" />
     </LinearLayout>
 
 </LinearLayout>
