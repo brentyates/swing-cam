@@ -29,7 +29,7 @@
             android:paddingTop="0dp"
             android:paddingBottom="0dp"
             android:layout_gravity="center_vertical"
-            android:translationY="-2dp" />
+            android:translationY="-4dp" />
 
         <TextView
             android:layout_width="0dp"
