@@ -5,8 +5,10 @@ import android.util.Log
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.ImageCapture
 import androidx.camera.core.ImageCaptureException
+import androidx.camera.core.ImageProxy
 import androidx.camera.core.Preview
 import androidx.camera.lifecycle.ProcessCameraProvider
+import java.nio.ByteBuffer
 import androidx.camera.video.FileOutputOptions
 import androidx.camera.video.Quality
 import androidx.camera.video.QualitySelector
@@ -561,37 +563,19 @@ class CameraManager(
         imageCaptureInstance.takePicture(
             executor,
             object : ImageCapture.OnImageCapturedCallback() {
-                override fun onCaptureSuccess(image: androidx.camera.core.ImageProxy) {
+                override fun onCaptureSuccess(image: ImageProxy) {
                     try {
-                        // Convert ImageProxy to JPEG bytes
-                        val buffer = image.planes[0].buffer
-                        val bytes = ByteArray(buffer.remaining())
-                        buffer.get(bytes)
-
-                        // If the image is not already JPEG, we need to convert it
-                        // For simplicity, we'll use in-memory JPEG encoding
-                        val outputStream = ByteArrayOutputStream()
-
-                        // Create a bitmap from the YUV image
-                        val yuvImage = android.graphics.YuvImage(
-                            bytes,
-                            android.graphics.ImageFormat.NV21,
-                            image.width,
-                            image.height,
-                            null
-                        )
-
-                        yuvImage.compressToJpeg(
-                            android.graphics.Rect(0, 0, image.width, image.height),
-                            60, // JPEG quality
-                            outputStream
-                        )
-
-                        cachedPreviewFrame = outputStream.toByteArray()
-
-                        image.close()
+                        // Convert YUV_420_888 ImageProxy to JPEG
+                        val jpegBytes = imageProxyToJpeg(image)
+                        if (jpegBytes != null) {
+                            cachedPreviewFrame = jpegBytes
+                            Log.d(TAG, "Preview frame captured: ${jpegBytes.size / 1024}KB")
+                        } else {
+                            Log.w(TAG, "Failed to convert image to JPEG")
+                        }
                     } catch (e: Exception) {
                         Log.e(TAG, "Failed to process preview frame", e)
+                    } finally {
                         image.close()
                     }
                 }
@@ -601,6 +585,69 @@ class CameraManager(
                 }
             }
         )
+    }
+
+    /**
+     * Convert ImageProxy (YUV_420_888) to JPEG bytes
+     */
+    private fun imageProxyToJpeg(image: ImageProxy): ByteArray? {
+        return try {
+            val yBuffer = image.planes[0].buffer
+            val uBuffer = image.planes[1].buffer
+            val vBuffer = image.planes[2].buffer
+
+            val ySize = yBuffer.remaining()
+            val uSize = uBuffer.remaining()
+            val vSize = vBuffer.remaining()
+
+            val nv21 = ByteArray(ySize + uSize + vSize)
+
+            // Copy Y plane
+            yBuffer.get(nv21, 0, ySize)
+
+            // Convert U and V planes to NV21 format (interleaved VU)
+            val uvPixelStride = image.planes[1].pixelStride
+            if (uvPixelStride == 1) {
+                // U and V are already tightly packed, just copy them
+                vBuffer.get(nv21, ySize, vSize)
+                uBuffer.get(nv21, ySize + vSize, uSize)
+            } else {
+                // U and V are interleaved, need to copy them properly
+                val uvRowStride = image.planes[1].rowStride
+                val width = image.width
+                val height = image.height
+
+                var pos = ySize
+                for (row in 0 until height / 2) {
+                    for (col in 0 until width / 2) {
+                        val vuPos = row * uvRowStride + col * uvPixelStride
+                        nv21[pos++] = vBuffer.get(vuPos)
+                        nv21[pos++] = uBuffer.get(vuPos)
+                    }
+                }
+            }
+
+            // Convert NV21 to JPEG
+            val yuvImage = android.graphics.YuvImage(
+                nv21,
+                android.graphics.ImageFormat.NV21,
+                image.width,
+                image.height,
+                null
+            )
+
+            val outputStream = ByteArrayOutputStream()
+            yuvImage.compressToJpeg(
+                android.graphics.Rect(0, 0, image.width, image.height),
+                75, // Higher quality for better preview
+                outputStream
+            )
+
+            outputStream.toByteArray()
+        } catch (e: Exception) {
+            Log.e(TAG, "Error converting ImageProxy to JPEG", e)
+            null
+        }
     }
 
     /**

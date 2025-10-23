@@ -220,11 +220,45 @@ class MainActivity : AppCompatActivity() {
                     binding.cameraPreview.visibility = View.VISIBLE
                     binding.playerView.visibility = View.GONE
                     isShowingReplay = false
+
+                    // Request layout to ensure PreviewView is measured
+                    binding.cameraPreview.requestLayout()
                     Log.d(TAG, "Camera preview view made visible")
                 }
 
-                cameraManager.setupCamera()
-                Log.d(TAG, "Camera setup completed successfully")
+                // Wait for PreviewView to be laid out
+                withContext(Dispatchers.Main) {
+                    binding.cameraPreview.post {
+                        lifecycleScope.launch {
+                            try {
+                                cameraManager.setupCamera()
+                                Log.d(TAG, "Camera setup completed successfully")
+
+                                withContext(Dispatchers.Main) {
+                                    binding.statusText.text = getString(R.string.ready)
+                                    binding.recordButton.isEnabled = true
+
+                                    // Check if there's a last recording to show
+                                    val lastRecording = repository.getAllRecordings().firstOrNull()
+                                    if (lastRecording != null) {
+                                        Log.d(TAG, "Found last recording, playing inline")
+                                        playRecordingInline(lastRecording)
+                                    }
+                                }
+                            } catch (e: Exception) {
+                                Log.e(TAG, "Camera setup failed", e)
+                                withContext(Dispatchers.Main) {
+                                    binding.statusText.text = "Camera error"
+                                    Toast.makeText(
+                                        this@MainActivity,
+                                        "Camera setup failed: ${e.message}",
+                                        Toast.LENGTH_LONG
+                                    ).show()
+                                }
+                            }
+                        }
+                    }
+                }
 
                 withContext(Dispatchers.Main) {
                     binding.statusText.text = getString(R.string.ready)
