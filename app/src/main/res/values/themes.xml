@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.SwingCam" parent="Theme.Material3.Light.NoActionBar">
+        <item name="colorPrimary">@color/moss_green</item>
+        <item name="colorPrimaryVariant">@color/fairway_green</item>
+        <item name="colorOnPrimary">@color/white</item>
+        <item name="colorSecondary">@color/fairway_green</item>
+        <item name="colorSecondaryVariant">@color/dark_green</item>
+        <item name="colorOnSecondary">@color/white</item>
+        <item name="android:statusBarColor">@color/dark_green</item>
+        <item name="android:windowSplashScreenBackground">@color/fairway_green</item>
+        <item name="android:windowSplashScreenIconBackgroundColor">@color/moss_green</item>
+    </style>
+</resources>

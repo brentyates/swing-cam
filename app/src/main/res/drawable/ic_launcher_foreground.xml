@@ -1,0 +1,42 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Golf Ball -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M54,54m-30,0a30,30 0,1,1 60,0a30,30 0,1,1 -60,0"/>
+
+    <!-- Dimples (scaled for larger icon) -->
+    <path
+        android:fillColor="#DDDDDD"
+        android:pathData="M40,40m-3,0a3,3 0,1,1 6,0a3,3 0,1,1 -6,0"/>
+    <path
+        android:fillColor="#DDDDDD"
+        android:pathData="M54,35m-3,0a3,3 0,1,1 6,0a3,3 0,1,1 -6,0"/>
+    <path
+        android:fillColor="#DDDDDD"
+        android:pathData="M68,40m-3,0a3,3 0,1,1 6,0a3,3 0,1,1 -6,0"/>
+    <path
+        android:fillColor="#DDDDDD"
+        android:pathData="M35,54m-3,0a3,3 0,1,1 6,0a3,3 0,1,1 -6,0"/>
+    <path
+        android:fillColor="#DDDDDD"
+        android:pathData="M46,54m-3,0a3,3 0,1,1 6,0a3,3 0,1,1 -6,0"/>
+    <path
+        android:fillColor="#DDDDDD"
+        android:pathData="M62,54m-3,0a3,3 0,1,1 6,0a3,3 0,1,1 -6,0"/>
+    <path
+        android:fillColor="#DDDDDD"
+        android:pathData="M73,54m-3,0a3,3 0,1,1 6,0a3,3 0,1,1 -6,0"/>
+    <path
+        android:fillColor="#DDDDDD"
+        android:pathData="M40,68m-3,0a3,3 0,1,1 6,0a3,3 0,1,1 -6,0"/>
+    <path
+        android:fillColor="#DDDDDD"
+        android:pathData="M54,73m-3,0a3,3 0,1,1 6,0a3,3 0,1,1 -6,0"/>
+    <path
+        android:fillColor="#DDDDDD"
+        android:pathData="M68,68m-3,0a3,3 0,1,1 6,0a3,3 0,1,1 -6,0"/>
+</vector>

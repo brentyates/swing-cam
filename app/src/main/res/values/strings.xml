@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">SwingCam</string>
+    <string name="server_running">API Server Running</string>
+    <string name="server_stopped">Server Stopped</string>
+    <string name="recording">Recording…</string>
+    <string name="ready">Ready to Record</string>
+    <string name="no_recordings">No recordings yet</string>
+    <string name="delete">Delete</string>
+    <string name="play">Play</string>
+    <string name="server_url">Ready! Trigger recordings at:\nhttp://%1$s:8080/api/record</string>
+</resources>

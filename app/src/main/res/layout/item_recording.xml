@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:padding="12dp"
+    android:background="#3A5F0B"
+    android:layout_marginBottom="8dp"
+    android:gravity="center_vertical">
+
+    <!-- Recording Info -->
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:orientation="vertical">
+
+        <TextView
+            android:id="@+id/timestampText"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="2024-01-15 14:30:22"
+            android:textColor="#FFFFFF"
+            android:textSize="14sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/detailsText"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="5s • 2.4 MB"
+            android:textColor="#CCFFFFFF"
+            android:textSize="12sp"
+            android:layout_marginTop="4dp" />
+    </LinearLayout>
+
+    <!-- Action Buttons -->
+    <LinearLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal">
+
+        <Button
+            android:id="@+id/playButton"
+            android:layout_width="60dp"
+            android:layout_height="36dp"
+            android:text="▶"
+            android:textSize="16sp"
+            android:backgroundTint="#567D46"
+            android:layout_marginEnd="8dp" />
+
+        <Button
+            android:id="@+id/deleteButton"
+            android:layout_width="60dp"
+            android:layout_height="36dp"
+            android:text="✕"
+            android:textSize="16sp"
+            android:backgroundTint="#B71C1C" />
+    </LinearLayout>
+
+</LinearLayout>

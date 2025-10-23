@@ -1,0 +1,179 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="#1A2E1A">
+
+    <!-- Header -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:padding="16dp"
+        android:background="#2D5016"
+        android:gravity="center_vertical">
+
+        <Button
+            android:id="@+id/backButton"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:text="←"
+            android:textSize="24sp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:textColor="#FFFFFF"
+            android:padding="0dp" />
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Recordings &amp; Settings"
+            android:textColor="#FFFFFF"
+            android:textSize="18sp"
+            android:textStyle="bold"
+            android:layout_marginStart="8dp" />
+    </LinearLayout>
+
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="match_parent">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="16dp">
+
+            <!-- Settings Section -->
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Settings"
+                android:textColor="#FFFFFF"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                android:layout_marginBottom="12dp" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:layout_marginBottom="24dp"
+                android:padding="12dp"
+                android:background="#3A5F0B">
+
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="Recording Duration (seconds)"
+                    android:textColor="#CCFFFFFF"
+                    android:textSize="14sp" />
+
+                <EditText
+                    android:id="@+id/durationInput"
+                    android:layout_width="80dp"
+                    android:layout_height="wrap_content"
+                    android:inputType="number"
+                    android:textColor="#FFFFFF"
+                    android:textSize="16sp"
+                    android:gravity="center"
+                    android:background="#567D46"
+                    android:padding="8dp" />
+
+                <Button
+                    android:id="@+id/saveDurationButton"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Save"
+                    android:layout_marginStart="8dp"
+                    android:textSize="12sp"
+                    android:backgroundTint="#567D46" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:layout_marginBottom="24dp"
+                android:padding="12dp"
+                android:background="#3A5F0B">
+
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="Post-Shot Delay (milliseconds)"
+                    android:textColor="#CCFFFFFF"
+                    android:textSize="14sp" />
+
+                <EditText
+                    android:id="@+id/postShotDelayInput"
+                    android:layout_width="80dp"
+                    android:layout_height="wrap_content"
+                    android:inputType="number"
+                    android:textColor="#FFFFFF"
+                    android:textSize="16sp"
+                    android:gravity="center"
+                    android:background="#567D46"
+                    android:padding="8dp" />
+
+                <Button
+                    android:id="@+id/savePostShotDelayButton"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Save"
+                    android:layout_marginStart="8dp"
+                    android:textSize="12sp"
+                    android:backgroundTint="#567D46" />
+            </LinearLayout>
+
+            <!-- Recordings Section -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:layout_marginBottom="12dp">
+
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="Recordings"
+                    android:textColor="#FFFFFF"
+                    android:textSize="16sp"
+                    android:textStyle="bold" />
+
+                <Button
+                    android:id="@+id/deleteAllButton"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Delete All"
+                    android:textSize="12sp"
+                    android:backgroundTint="#B71C1C" />
+            </LinearLayout>
+
+            <TextView
+                android:id="@+id/emptyText"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="No recordings yet"
+                android:textColor="#666666"
+                android:textSize="14sp"
+                android:gravity="center"
+                android:padding="32dp"
+                android:visibility="gone" />
+
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/recordingsRecyclerView"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content" />
+
+        </LinearLayout>
+    </ScrollView>
+
+</LinearLayout>
