@@ -27,7 +27,8 @@
             android:insetTop="0dp"
             android:insetBottom="0dp"
             android:paddingTop="0dp"
-            android:paddingBottom="0dp" />
+            android:paddingBottom="0dp"
+            android:layout_gravity="center_vertical" />
 
         <TextView
             android:layout_width="0dp"
@@ -37,7 +38,8 @@
             android:textColor="#FFFFFF"
             android:textSize="18sp"
             android:textStyle="bold"
-            android:layout_marginStart="8dp" />
+            android:layout_marginStart="8dp"
+            android:layout_gravity="center_vertical" />
     </LinearLayout>
 
     <ScrollView
