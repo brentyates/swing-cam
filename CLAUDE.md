@@ -103,9 +103,11 @@ adb shell run-as com.example.swingcam ls files/recordings
    - Shows persistent notification with server status
 
 3. **CameraManager.kt** - Camera abstraction
-   - Uses CameraX Video API
+   - Uses CameraX Video API (VideoCapture for recording)
+   - Uses CameraX ImageCapture for live preview snapshots
    - Configures for highest quality (slow-motion)
    - Auto-stops recording after configured duration
+   - Captures JPEG snapshots for web interface preview (~1fps)
    - Callbacks for recording lifecycle events
 
 4. **RecordingRepository.kt** - File management
@@ -116,6 +118,15 @@ adb shell run-as com.example.swingcam ls files/recordings
 5. **RecordingAdapter.kt** - RecyclerView adapter
    - Displays list of recordings
    - Play/delete buttons per recording
+
+6. **Web Interface** (assets/web/)
+   - `index.html` - Remote web interface UI
+   - `styles.css` - Golf-themed responsive styling
+   - `app.js` - Client-side JavaScript for video playback and polling
+   - Accessible at http://[phone-ip]:8080
+   - Auto-plays most recent recording
+   - Real-time polling for new recordings (2.5s interval)
+   - Live camera preview (toggle on/off)
 
 ### Data Models
 
@@ -137,6 +148,28 @@ data class RecordingMetadata(
 )
 ```
 
+### HTTP API Endpoints
+
+**Recording Management:**
+- `POST /api/record` - Start a recording
+- `GET /api/status` - Get camera status
+- `GET /api/recordings` - List all recordings (sorted newest first)
+- `DELETE /api/recordings/{filename}` - Delete specific recording
+- `DELETE /api/recordings` - Delete all recordings
+
+**Launch Monitor Mode:**
+- `POST /api/lm/arm` - Arm launch monitor (start continuous recording)
+- `POST /api/lm/shot-detected` - Extract last N seconds from buffer
+- `POST /api/lm/cancel` - Cancel launch monitor mode
+- `GET /api/lm/status` - Get launch monitor status
+
+**Web Interface:**
+- `GET /` - Serve web interface (index.html)
+- `GET /styles.css` - Serve CSS stylesheet
+- `GET /app.js` - Serve JavaScript application
+- `GET /api/recordings/{filename}/stream` - Stream video with HTTP range support
+- `GET /api/camera/preview` - Get live camera preview snapshot (JPEG)
+
 ### HTTP API Flow
 
 1. External client sends `POST /api/record`
@@ -146,6 +179,7 @@ data class RecordingMetadata(
 5. CameraManager records for configured duration
 6. On completion, metadata saved via RecordingRepository
 7. UI refreshes to show new recording
+8. Web interface polls and auto-updates with new recording
 
 ### File Organization
 
@@ -291,6 +325,28 @@ Currently hardcoded to 8080. To change:
 2. Update documentation in README.md and USAGE.md
 3. Consider making it configurable in Config.kt
 
+### Accessing the Web Interface
+
+The web interface is automatically served when the HTTP server is running:
+
+1. Start the HTTP server in the app (auto-starts on launch)
+2. Note the IP address displayed in the app (e.g., 10.0.0.147)
+3. Open browser on same WiFi network: `http://[phone-ip]:8080`
+
+**Features:**
+- Auto-plays most recent swing recording with loop
+- Polls for new recordings every 2.5 seconds
+- Click any recording in list to play it
+- Toggle live camera preview on/off
+- Responsive design (mobile, tablet, desktop)
+- HTTP range request support for smooth video seeking
+
+**Debugging Web Interface:**
+- Check browser console for JavaScript errors
+- Verify `/api/recordings` returns data
+- Test video streaming: `curl -I http://[ip]:8080/api/recordings/[filename]/stream`
+- Test preview: `curl http://[ip]:8080/api/camera/preview -o preview.jpg`
+
 ## Code Style & Conventions
 
 - **Kotlin style**: Official Kotlin coding conventions
@@ -409,6 +465,17 @@ Manual testing checklist:
 - [ ] GET /api/recordings lists all recordings
 - [ ] DELETE /api/recordings/{filename} removes recording
 - [ ] DELETE /api/recordings clears all
+- [ ] GET /api/recordings/{filename}/stream returns video with range support
+- [ ] GET /api/camera/preview returns JPEG snapshot
+
+**Web Interface**
+- [ ] Open http://[phone-ip]:8080 in browser
+- [ ] Most recent recording auto-plays and loops
+- [ ] Click recording in list to play it
+- [ ] New recording appears within 3 seconds of creation
+- [ ] Video seeking/scrubbing works smoothly
+- [ ] Enable live preview shows camera feed (~1fps)
+- [ ] Responsive design works on mobile and desktop
 
 **Edge Cases**
 - [ ] Recording while already recording (rejected)
@@ -417,15 +484,19 @@ Manual testing checklist:
 - [ ] App backgrounded during recording (continues)
 - [ ] Service killed by system (restarts)
 
+## Recently Completed Features
+
+- **Remote Web View Interface** (October 2025) - Fully implemented web interface for viewing/playing recordings remotely
+  - Access at http://[phone-ip]:8080
+  - Auto-play most recent recording with loop
+  - Real-time polling for new recordings
+  - HTTP range request support for video seeking
+  - Live camera preview (toggle on/off)
+  - Implementation details: [WEB_INTERFACE_PLAN.md](docs/WEB_INTERFACE_PLAN.md)
+
 ## Future Enhancements
 
 See [TODO.md](../TODO.md) for the complete feature backlog with priorities.
-
-### Implementation Plans
-
-Detailed implementation plans for major features:
-
-- **[Remote Web View Interface](docs/WEB_INTERFACE_PLAN.md)** - Web interface for viewing/playing recordings remotely, with live camera preview. Complete 4-phase implementation plan with technical approach, API design, and testing strategy.
 
 ### Quick Reference
 
