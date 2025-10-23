@@ -11,6 +11,14 @@
 - [x] Asynchronous video extraction (to avoid blocking re-arm)
 - [x] Handle re-arming while already armed (discard and restart)
 - [x] Golf-themed color scheme (greens and whites)
+- [x] Remote web view interface (October 2025)
+  - Web interface accessible via browser at http://[phone-ip]:8080
+  - Auto-plays most recent recording with loop
+  - Real-time polling for new videos (2.5s interval)
+  - HTTP range request support for smooth video seeking
+  - Live camera preview (toggle on/off, ~1fps)
+  - Mobile-friendly responsive design
+  - Golf-themed UI matching Android app
 
 ## Backlog 📋
 
@@ -24,16 +32,7 @@
   - Ensure club data updates are matched to the correct video (by filename or timestamp)
   - Store metadata alongside video .json files
   - Display metadata in recordings list/detail view
-
-- [ ] **Remote Web View Interface**
-  - Create web interface accessible via browser (e.g., http://[phone-ip]:8080)
-  - Show most recent recording automatically (auto-play/loop)
-  - Real-time updates when new videos are recorded (websocket or polling)
-  - Video player embedded in web page
-  - Optional: Show live camera preview before shot is taken
-  - Optional: Display shot metadata alongside video (if metadata feature implemented)
-  - Mobile-friendly responsive design
-  - Simple, minimal UI focused on video playback
+  - Display metadata in web interface alongside video playback
 
 ### Medium Priority
 
