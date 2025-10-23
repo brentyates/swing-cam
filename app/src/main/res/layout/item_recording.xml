@@ -47,7 +47,8 @@
             android:text="▶"
             android:textSize="16sp"
             android:backgroundTint="#567D46"
-            android:layout_marginEnd="8dp" />
+            android:layout_marginEnd="8dp"
+            android:gravity="center" />
 
         <Button
             android:id="@+id/deleteButton"
@@ -55,7 +56,8 @@
             android:layout_height="36dp"
             android:text="✕"
             android:textSize="16sp"
-            android:backgroundTint="#B71C1C" />
+            android:backgroundTint="#B71C1C"
+            android:gravity="center" />
     </LinearLayout>
 
 </LinearLayout>

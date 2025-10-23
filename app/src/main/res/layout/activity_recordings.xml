@@ -22,7 +22,8 @@
             android:textSize="24sp"
             android:background="?attr/selectableItemBackgroundBorderless"
             android:textColor="#FFFFFF"
-            android:padding="0dp" />
+            android:padding="0dp"
+            android:gravity="center" />
 
         <TextView
             android:layout_width="0dp"
