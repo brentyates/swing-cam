@@ -15,6 +15,7 @@ import androidx.core.app.NotificationCompat
 import com.example.swingcam.MainActivity
 import com.example.swingcam.R
 import io.ktor.http.*
+import io.ktor.http.content.*
 import io.ktor.serialization.gson.*
 import io.ktor.server.application.*
 import io.ktor.server.engine.*
@@ -24,6 +25,8 @@ import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import kotlinx.coroutines.*
+import java.io.File
+import java.io.RandomAccessFile
 import java.net.NetworkInterface
 
 /**
@@ -43,6 +46,8 @@ class HttpServerService : Service() {
         fun getRecordings(): List<Map<String, Any>>
         fun deleteRecording(filename: String): Boolean
         fun deleteAllRecordings(): Boolean
+        fun getVideoFile(filename: String): File?
+        fun captureAndGetPreviewFrame(): ByteArray?
 
         // Launch Monitor API
         suspend fun armLaunchMonitor(): Map<String, Any>
@@ -89,6 +94,22 @@ class HttpServerService : Service() {
                     }
 
                     routing {
+                        // Static web interface files
+                        get("/") {
+                            val html = assets.open("web/index.html").bufferedReader().use { it.readText() }
+                            call.respondText(html, ContentType.Text.Html)
+                        }
+
+                        get("/styles.css") {
+                            val css = assets.open("web/styles.css").bufferedReader().use { it.readText() }
+                            call.respondText(css, ContentType.Text.CSS)
+                        }
+
+                        get("/app.js") {
+                            val js = assets.open("web/app.js").bufferedReader().use { it.readText() }
+                            call.respondText(js, ContentType.Application.JavaScript)
+                        }
+
                         // API endpoints similar to golf-cam Flask routes
 
                         get("/api/status") {
@@ -121,10 +142,81 @@ class HttpServerService : Service() {
                         get("/api/recordings") {
                             val callback = serverCallback
                             if (callback != null) {
-                                call.respond(mapOf("recordings" to callback.getRecordings()))
+                                // Return array directly (not wrapped in "recordings" key)
+                                call.respond(callback.getRecordings())
                             } else {
                                 call.respond(HttpStatusCode.ServiceUnavailable,
                                     mapOf("error" to "Service not ready"))
+                            }
+                        }
+
+                        // Video streaming endpoint with HTTP range request support
+                        get("/api/recordings/{filename}/stream") {
+                            val callback = serverCallback
+                            val filename = call.parameters["filename"]
+
+                            if (callback == null || filename == null) {
+                                call.respond(HttpStatusCode.BadRequest,
+                                    mapOf("error" to "Invalid request"))
+                                return@get
+                            }
+
+                            val videoFile = callback.getVideoFile(filename)
+                            if (videoFile == null || !videoFile.exists()) {
+                                call.respond(HttpStatusCode.NotFound,
+                                    mapOf("error" to "Video not found"))
+                                return@get
+                            }
+
+                            try {
+                                val fileLength = videoFile.length()
+                                val rangeHeader = call.request.header("Range")
+
+                                if (rangeHeader != null && rangeHeader.startsWith("bytes=")) {
+                                    // Handle range request for seeking/partial content
+                                    val range = rangeHeader.substring(6).split("-")
+                                    val start = range[0].toLongOrNull() ?: 0
+                                    val end = if (range.size > 1 && range[1].isNotEmpty()) {
+                                        range[1].toLongOrNull() ?: (fileLength - 1)
+                                    } else {
+                                        fileLength - 1
+                                    }
+
+                                    val contentLength = end - start + 1
+
+                                    call.response.status(HttpStatusCode.PartialContent)
+                                    call.response.header("Content-Type", "video/mp4")
+                                    call.response.header("Accept-Ranges", "bytes")
+                                    call.response.header("Content-Range", "bytes $start-$end/$fileLength")
+                                    call.response.header("Content-Length", contentLength.toString())
+
+                                    // Stream the requested byte range
+                                    RandomAccessFile(videoFile, "r").use { raf ->
+                                        raf.seek(start)
+                                        val buffer = ByteArray(8192)
+                                        var remaining = contentLength
+
+                                        call.respondOutputStream(ContentType.Video.MP4) {
+                                            while (remaining > 0) {
+                                                val toRead = minOf(buffer.size.toLong(), remaining).toInt()
+                                                val bytesRead = raf.read(buffer, 0, toRead)
+                                                if (bytesRead == -1) break
+                                                write(buffer, 0, bytesRead)
+                                                remaining -= bytesRead
+                                            }
+                                        }
+                                    }
+                                } else {
+                                    // Full file request
+                                    call.response.header("Content-Type", "video/mp4")
+                                    call.response.header("Accept-Ranges", "bytes")
+                                    call.response.header("Content-Length", fileLength.toString())
+                                    call.respondFile(videoFile)
+                                }
+                            } catch (e: Exception) {
+                                Log.e(TAG, "Error streaming video", e)
+                                call.respond(HttpStatusCode.InternalServerError,
+                                    mapOf("error" to "Failed to stream video"))
                             }
                         }
 
@@ -223,10 +315,32 @@ class HttpServerService : Service() {
                             }
                         }
 
-                        // Health check endpoint
-                        get("/") {
-                            call.respondText("SwingCam HTTP Server Running",
-                                ContentType.Text.Plain)
+                        // Live camera preview endpoint (Phase 4)
+                        get("/api/camera/preview") {
+                            val callback = serverCallback
+                            if (callback == null) {
+                                call.respond(HttpStatusCode.ServiceUnavailable,
+                                    mapOf("error" to "Service not ready"))
+                                return@get
+                            }
+
+                            try {
+                                val jpegBytes = callback.captureAndGetPreviewFrame()
+                                if (jpegBytes != null && jpegBytes.isNotEmpty()) {
+                                    call.response.header("Content-Type", "image/jpeg")
+                                    call.response.header("Cache-Control", "no-cache, no-store, must-revalidate")
+                                    call.response.header("Pragma", "no-cache")
+                                    call.response.header("Expires", "0")
+                                    call.respondBytes(jpegBytes, ContentType.Image.JPEG)
+                                } else {
+                                    // No frame available yet, return placeholder or error
+                                    call.respond(HttpStatusCode.NoContent)
+                                }
+                            } catch (e: Exception) {
+                                Log.e(TAG, "Error capturing preview frame", e)
+                                call.respond(HttpStatusCode.InternalServerError,
+                                    mapOf("error" to "Failed to capture preview"))
+                            }
                         }
                     }
                 }.start(wait = false)

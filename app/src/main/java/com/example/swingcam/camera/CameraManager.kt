@@ -3,8 +3,12 @@ package com.example.swingcam.camera
 import android.content.Context
 import android.util.Log
 import androidx.camera.core.CameraSelector
+import androidx.camera.core.ImageCapture
+import androidx.camera.core.ImageCaptureException
+import androidx.camera.core.ImageProxy
 import androidx.camera.core.Preview
 import androidx.camera.lifecycle.ProcessCameraProvider
+import java.nio.ByteBuffer
 import androidx.camera.video.FileOutputOptions
 import androidx.camera.video.Quality
 import androidx.camera.video.QualitySelector
@@ -23,6 +27,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import java.io.ByteArrayOutputStream
 import java.io.File
 import java.util.concurrent.Executors
 
@@ -46,9 +51,14 @@ class CameraManager(
 ) {
 
     private var videoCapture: VideoCapture<Recorder>? = null
+    private var imageCapture: ImageCapture? = null
     private var activeRecording: Recording? = null
     private val executor = Executors.newSingleThreadExecutor()
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
+    // Cached preview frame for web interface
+    @Volatile
+    private var cachedPreviewFrame: ByteArray? = null
 
     var isRecording = false
         private set
@@ -88,6 +98,13 @@ class CameraManager(
             videoCapture = VideoCapture.withOutput(recorder)
             Log.d(TAG, "Video capture configured")
 
+            // Setup image capture for preview snapshots
+            imageCapture = ImageCapture.Builder()
+                .setCaptureMode(ImageCapture.CAPTURE_MODE_MINIMIZE_LATENCY)
+                .setJpegQuality(75) // Increased quality to 75% for better preview consistency
+                .build()
+            Log.d(TAG, "Image capture configured")
+
             // Setup preview
             val preview = Preview.Builder().build().also {
                 it.setSurfaceProvider(previewView.surfaceProvider)
@@ -101,15 +118,16 @@ class CameraManager(
                 cameraProvider.unbindAll()
                 Log.d(TAG, "Unbound all previous camera instances")
 
-                // Bind BOTH preview and video capture together
+                // Bind preview, video capture, and image capture together
                 val camera = cameraProvider.bindToLifecycle(
                     lifecycleOwner,
                     cameraSelector,
                     preview,
-                    videoCapture
+                    videoCapture,
+                    imageCapture
                 )
 
-                Log.d(TAG, "Camera setup complete with preview and video capture. Camera ID: ${camera.cameraInfo.cameraSelector}")
+                Log.d(TAG, "Camera setup complete with preview, video capture, and image capture. Camera ID: ${camera.cameraInfo.cameraSelector}")
             } catch (e: Exception) {
                 Log.e(TAG, "Camera binding failed", e)
                 throw e
@@ -189,6 +207,7 @@ class CameraManager(
         lmState = LMState.IDLE
         lmTempFile?.delete()
         lmTempFile = null
+        cachedPreviewFrame = null
         scope.cancel() // Cancel any background extraction jobs
         executor.shutdown()
     }
@@ -528,6 +547,132 @@ class CameraManager(
             Log.e(TAG, "Extraction failed", e)
             return false
         }
+    }
+
+    /**
+     * Capture a preview frame for the web interface
+     * This captures a JPEG snapshot and caches it in memory
+     */
+    fun capturePreviewFrame() {
+        val imageCaptureInstance = imageCapture
+        if (imageCaptureInstance == null) {
+            Log.w(TAG, "Image capture not initialized, cannot capture preview frame")
+            return
+        }
+
+        imageCaptureInstance.takePicture(
+            executor,
+            object : ImageCapture.OnImageCapturedCallback() {
+                override fun onCaptureSuccess(image: ImageProxy) {
+                    try {
+                        // Check image format - might be JPEG already or YUV
+                        val jpegBytes = when (image.format) {
+                            android.graphics.ImageFormat.JPEG -> {
+                                // Already JPEG, just extract bytes
+                                val buffer = image.planes[0].buffer
+                                val bytes = ByteArray(buffer.remaining())
+                                buffer.get(bytes)
+                                bytes
+                            }
+                            android.graphics.ImageFormat.YUV_420_888 -> {
+                                // Convert YUV to JPEG
+                                imageProxyToJpeg(image)
+                            }
+                            else -> {
+                                Log.w(TAG, "Unexpected image format: ${image.format}")
+                                null
+                            }
+                        }
+
+                        if (jpegBytes != null) {
+                            cachedPreviewFrame = jpegBytes
+                            Log.d(TAG, "Preview frame captured: ${jpegBytes.size / 1024}KB (format: ${image.format})")
+                        } else {
+                            Log.w(TAG, "Failed to convert image to JPEG")
+                        }
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Failed to process preview frame", e)
+                    } finally {
+                        image.close()
+                    }
+                }
+
+                override fun onError(exception: ImageCaptureException) {
+                    Log.e(TAG, "Failed to capture preview frame: ${exception.message}")
+                }
+            }
+        )
+    }
+
+    /**
+     * Convert ImageProxy (YUV_420_888) to JPEG bytes
+     */
+    private fun imageProxyToJpeg(image: ImageProxy): ByteArray? {
+        return try {
+            val yBuffer = image.planes[0].buffer
+            val uBuffer = image.planes[1].buffer
+            val vBuffer = image.planes[2].buffer
+
+            val ySize = yBuffer.remaining()
+            val uSize = uBuffer.remaining()
+            val vSize = vBuffer.remaining()
+
+            val nv21 = ByteArray(ySize + uSize + vSize)
+
+            // Copy Y plane
+            yBuffer.get(nv21, 0, ySize)
+
+            // Convert U and V planes to NV21 format (interleaved VU)
+            val uvPixelStride = image.planes[1].pixelStride
+            if (uvPixelStride == 1) {
+                // U and V are already tightly packed, just copy them
+                vBuffer.get(nv21, ySize, vSize)
+                uBuffer.get(nv21, ySize + vSize, uSize)
+            } else {
+                // U and V are interleaved, need to copy them properly
+                val uvRowStride = image.planes[1].rowStride
+                val width = image.width
+                val height = image.height
+
+                var pos = ySize
+                for (row in 0 until height / 2) {
+                    for (col in 0 until width / 2) {
+                        val vuPos = row * uvRowStride + col * uvPixelStride
+                        nv21[pos++] = vBuffer.get(vuPos)
+                        nv21[pos++] = uBuffer.get(vuPos)
+                    }
+                }
+            }
+
+            // Convert NV21 to JPEG
+            val yuvImage = android.graphics.YuvImage(
+                nv21,
+                android.graphics.ImageFormat.NV21,
+                image.width,
+                image.height,
+                null
+            )
+
+            val outputStream = ByteArrayOutputStream()
+            yuvImage.compressToJpeg(
+                android.graphics.Rect(0, 0, image.width, image.height),
+                75, // Higher quality for better preview
+                outputStream
+            )
+
+            outputStream.toByteArray()
+        } catch (e: Exception) {
+            Log.e(TAG, "Error converting ImageProxy to JPEG", e)
+            null
+        }
+    }
+
+    /**
+     * Get the latest cached preview frame as JPEG bytes
+     * Returns null if no frame has been captured yet
+     */
+    fun getLatestPreviewFrame(): ByteArray? {
+        return cachedPreviewFrame
     }
 
     companion object {
