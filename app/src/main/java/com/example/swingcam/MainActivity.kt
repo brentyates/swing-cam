@@ -24,9 +24,12 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
 import com.example.swingcam.camera.CameraManager
+import com.example.swingcam.data.BallData
+import com.example.swingcam.data.ClubData
 import com.example.swingcam.data.Config
 import com.example.swingcam.data.RecordingMetadata
 import com.example.swingcam.data.RecordingRepository
+import com.example.swingcam.data.ShotMetadata
 import com.example.swingcam.databinding.ActivityMainBinding
 import com.example.swingcam.server.HttpServerService
 import kotlinx.coroutines.Dispatchers
@@ -45,6 +48,9 @@ class MainActivity : AppCompatActivity() {
 
     private var httpServerService: HttpServerService? = null
     private var serviceBound = false
+
+    // Store ball data from shot detection to be saved with metadata when extraction completes
+    private var pendingBallData: BallData? = null
 
     private val serviceConnection = object : ServiceConnection {
         override fun onServiceConnected(name: ComponentName?, service: IBinder?) {
@@ -162,15 +168,27 @@ class MainActivity : AppCompatActivity() {
         cameraManager.onExtractionComplete = { outputFile ->
             // Called when background extraction finishes
             try {
-                val metadata = RecordingMetadata.fromVideoFile(outputFile, config)
+                // Create metadata with pending ball data if available
+                val baseMetadata = RecordingMetadata.fromVideoFile(outputFile, config)
+                val metadata = if (pendingBallData != null) {
+                    baseMetadata.copy(shotMetadata = ShotMetadata(ballData = pendingBallData))
+                } else {
+                    baseMetadata
+                }
+
                 repository.saveMetadata(metadata)
-                Log.d(TAG, "Metadata saved for ${outputFile.name}")
+                Log.d(TAG, "Metadata saved for ${outputFile.name}" +
+                    if (pendingBallData != null) " with ball data" else "")
+
+                // Clear pending ball data after use
+                pendingBallData = null
 
                 runOnUiThread {
                     playRecordingInline(metadata)
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to save metadata after extraction", e)
+                pendingBallData = null // Clear on error too
             }
         }
 
@@ -438,12 +456,59 @@ class MainActivity : AppCompatActivity() {
 
             override fun getRecordings(): List<Map<String, Any>> {
                 return repository.getAllRecordings().map { metadata ->
-                    mapOf(
+                    val baseMap = mutableMapOf<String, Any>(
                         "filename" to metadata.filename,
                         "timestamp" to metadata.timestamp,
                         "duration" to metadata.duration,
                         "fileSize" to metadata.fileSize
                     )
+
+                    // Add shot metadata if available
+                    metadata.shotMetadata?.let { shotData ->
+                        val shotMetadataMap = mutableMapOf<String, Any>()
+
+                        shotData.ballData?.let { ball ->
+                            val ballMap = mutableMapOf<String, Any>()
+                            ball.ballSpeed?.let { ballMap["ballSpeed"] = it }
+                            ball.launchAngle?.let { ballMap["launchAngle"] = it }
+                            ball.launchDirection?.let { ballMap["launchDirection"] = it }
+                            ball.spinRate?.let { ballMap["spinRate"] = it }
+                            ball.spinAxis?.let { ballMap["spinAxis"] = it }
+                            ball.backSpin?.let { ballMap["backSpin"] = it }
+                            ball.sideSpin?.let { ballMap["sideSpin"] = it }
+                            ball.carryDistance?.let { ballMap["carryDistance"] = it }
+                            ball.totalDistance?.let { ballMap["totalDistance"] = it }
+                            ball.maxHeight?.let { ballMap["maxHeight"] = it }
+                            ball.landingAngle?.let { ballMap["landingAngle"] = it }
+                            ball.hangTime?.let { ballMap["hangTime"] = it }
+                            if (ballMap.isNotEmpty()) {
+                                shotMetadataMap["ballData"] = ballMap
+                            }
+                        }
+
+                        shotData.clubData?.let { club ->
+                            val clubMap = mutableMapOf<String, Any>()
+                            club.clubSpeed?.let { clubMap["clubSpeed"] = it }
+                            club.clubPath?.let { clubMap["clubPath"] = it }
+                            club.faceAngle?.let { clubMap["faceAngle"] = it }
+                            club.faceToPath?.let { clubMap["faceToPath"] = it }
+                            club.attackAngle?.let { clubMap["attackAngle"] = it }
+                            club.dynamicLoft?.let { clubMap["dynamicLoft"] = it }
+                            club.smashFactor?.let { clubMap["smashFactor"] = it }
+                            club.lowPoint?.let { clubMap["lowPoint"] = it }
+                            club.clubType?.let { clubMap["clubType"] = it }
+                            if (clubMap.isNotEmpty()) {
+                                shotMetadataMap["clubData"] = clubMap
+                            }
+                        }
+
+                        if (shotMetadataMap.isNotEmpty()) {
+                            shotMetadataMap["timestamp"] = shotData.timestamp
+                            baseMap["shotMetadata"] = shotMetadataMap
+                        }
+                    }
+
+                    baseMap
                 }
             }
 
@@ -471,22 +536,31 @@ class MainActivity : AppCompatActivity() {
                 return cameraManager.armLaunchMonitor(repository.recordingsDir)
             }
 
-            override suspend fun shotDetected(): Map<String, Any> {
+            override suspend fun shotDetected(ballData: BallData?): Map<String, Any> {
                 val filename = RecordingMetadata.generateFilename()
                 val outputFile = File(repository.recordingsDir, filename)
 
                 try {
+                    // Store ball data to be included when extraction completes
+                    pendingBallData = ballData
+                    if (ballData != null) {
+                        Log.d(TAG, "Received ball data with shot: speed=${ballData.ballSpeed}, " +
+                            "launch=${ballData.launchAngle}, carry=${ballData.carryDistance}")
+                    }
+
                     // shotDetected now returns immediately and extracts in background
                     // Metadata will be saved via onExtractionComplete callback
                     val result = cameraManager.shotDetected(outputFile, config.duration, config.postShotDelay)
 
                     if (result["status"] != "success") {
                         Log.e(TAG, "Shot detection failed: ${result["message"]}")
+                        pendingBallData = null // Clear on failure
                     }
 
                     return result
                 } catch (e: Exception) {
                     Log.e(TAG, "Shot detection crashed", e)
+                    pendingBallData = null // Clear on error
                     return mapOf(
                         "status" to "error",
                         "message" to "Unexpected error: ${e.message}"
@@ -500,6 +574,37 @@ class MainActivity : AppCompatActivity() {
 
             override fun getLMStatus(): Map<String, Any> {
                 return cameraManager.getLMStatus()
+            }
+
+            override fun updateShotMetadata(filename: String, clubData: ClubData?): Boolean {
+                try {
+                    // Load existing metadata
+                    val existingMetadata = repository.getRecording(filename) ?: return false
+
+                    // Update with club data
+                    val updatedShotMetadata = if (existingMetadata.shotMetadata != null) {
+                        // Merge with existing shot metadata
+                        existingMetadata.shotMetadata.copy(clubData = clubData)
+                    } else {
+                        // Create new shot metadata with just club data
+                        ShotMetadata(clubData = clubData)
+                    }
+
+                    val updatedMetadata = existingMetadata.copy(shotMetadata = updatedShotMetadata)
+
+                    // Save updated metadata
+                    repository.saveMetadata(updatedMetadata)
+
+                    if (clubData != null) {
+                        Log.i(TAG, "Updated metadata for $filename with club data - " +
+                            "club: ${clubData.clubType}, speed: ${clubData.clubSpeed}")
+                    }
+
+                    return true
+                } catch (e: Exception) {
+                    Log.e(TAG, "Failed to update shot metadata for $filename", e)
+                    return false
+                }
             }
         }
     }

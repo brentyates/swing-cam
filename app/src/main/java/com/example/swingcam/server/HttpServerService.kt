@@ -51,9 +51,10 @@ class HttpServerService : Service() {
 
         // Launch Monitor API
         suspend fun armLaunchMonitor(): Map<String, Any>
-        suspend fun shotDetected(): Map<String, Any>
+        suspend fun shotDetected(ballData: com.example.swingcam.data.BallData? = null): Map<String, Any>
         fun cancelLaunchMonitor(): Map<String, Any>
         fun getLMStatus(): Map<String, Any>
+        fun updateShotMetadata(filename: String, clubData: com.example.swingcam.data.ClubData? = null): Boolean
     }
 
     inner class LocalBinder : Binder() {
@@ -274,7 +275,19 @@ class HttpServerService : Service() {
                             val callback = serverCallback
                             if (callback != null) {
                                 try {
-                                    val result = callback.shotDetected()
+                                    // Parse optional ball data from request body
+                                    val ballData = try {
+                                        call.receive<com.example.swingcam.data.BallData>()
+                                    } catch (e: Exception) {
+                                        Log.d(TAG, "No ball data in request body or parse error, continuing without it")
+                                        null
+                                    }
+
+                                    if (ballData != null) {
+                                        Log.i(TAG, "API: Received ball data - speed: ${ballData.ballSpeed}, launch: ${ballData.launchAngle}")
+                                    }
+
+                                    val result = callback.shotDetected(ballData)
                                     Log.i(TAG, "API: shot-detected result: ${result["status"]} - ${result["message"] ?: result["filename"]}")
                                     call.respond(result)
                                 } catch (e: Exception) {
@@ -340,6 +353,46 @@ class HttpServerService : Service() {
                                 Log.e(TAG, "Error capturing preview frame", e)
                                 call.respond(HttpStatusCode.InternalServerError,
                                     mapOf("error" to "Failed to capture preview"))
+                            }
+                        }
+
+                        // Update shot metadata (typically club data sent after ball data)
+                        patch("/api/recordings/{filename}/metadata") {
+                            val callback = serverCallback
+                            val filename = call.parameters["filename"]
+
+                            if (callback == null || filename == null) {
+                                call.respond(HttpStatusCode.BadRequest,
+                                    mapOf("error" to "Invalid request"))
+                                return@patch
+                            }
+
+                            try {
+                                // Parse club data from request body
+                                val clubData = try {
+                                    call.receive<com.example.swingcam.data.ClubData>()
+                                } catch (e: Exception) {
+                                    Log.e(TAG, "Failed to parse club data", e)
+                                    null
+                                }
+
+                                if (clubData != null) {
+                                    Log.i(TAG, "API: Updating metadata for $filename with club data - speed: ${clubData.clubSpeed}, club: ${clubData.clubType}")
+                                    val success = callback.updateShotMetadata(filename, clubData)
+                                    if (success) {
+                                        call.respond(mapOf("success" to true, "message" to "Metadata updated"))
+                                    } else {
+                                        call.respond(HttpStatusCode.NotFound,
+                                            mapOf("error" to "Recording not found"))
+                                    }
+                                } else {
+                                    call.respond(HttpStatusCode.BadRequest,
+                                        mapOf("error" to "Invalid or missing club data"))
+                                }
+                            } catch (e: Exception) {
+                                Log.e(TAG, "Error updating metadata", e)
+                                call.respond(HttpStatusCode.InternalServerError,
+                                    mapOf("error" to "Failed to update metadata"))
                             }
                         }
                     }

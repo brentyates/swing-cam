@@ -361,3 +361,66 @@ body {
 .recordings-list::-webkit-scrollbar-thumb:hover {
     background: var(--fairway-green);
 }
+
+/* Shot Metadata Styling */
+.recording-metadata {
+    margin-top: 0.5rem;
+    font-size: 0.8rem;
+    color: var(--moss-green);
+}
+
+.recording-item.active .recording-metadata {
+    color: var(--wheat-tan);
+}
+
+.metadata-line {
+    margin-top: 0.25rem;
+}
+
+.video-metadata {
+    margin-top: 1rem;
+    padding: 1rem;
+    background-color: var(--light-gray);
+    border-radius: 6px;
+}
+
+.shot-metadata-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 1rem;
+}
+
+.metadata-section h4 {
+    color: var(--dark-green);
+    font-size: 1rem;
+    margin: 0 0 0.75rem 0;
+    padding-bottom: 0.5rem;
+    border-bottom: 2px solid var(--moss-green);
+}
+
+.metadata-items {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.metadata-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.5rem;
+    background-color: var(--white);
+    border-radius: 4px;
+}
+
+.metadata-item .label {
+    color: var(--moss-green);
+    font-weight: 500;
+    font-size: 0.9rem;
+}
+
+.metadata-item .value {
+    color: var(--dark-green);
+    font-weight: 600;
+    font-size: 0.95rem;
+}
