@@ -245,9 +245,14 @@ async function checkForNewRecordings() {
             updateStatus('connected', `Live (${recordings.length} recordings)`);
             renderRecordingsList();
 
-            // Auto-load newest recording
+            // Auto-load newest recording only if video file is ready (fileSize > 0)
             if (recordings.length > 0) {
-                loadVideo(recordings[0]);
+                const newestRecording = recordings[0];
+                if (newestRecording.fileSize > 0) {
+                    loadVideo(newestRecording);
+                } else {
+                    console.log('New recording detected but video not ready yet (fileSize=0), waiting...');
+                }
             }
         } else if (newRecordings.length !== recordings.length) {
             // Recording count changed (deleted)
@@ -274,11 +279,20 @@ async function checkForNewRecordings() {
                 if (updatedRecording && hasMetadataChanged(currentRecording, updatedRecording)) {
                     console.log('Metadata updated for current recording!');
 
+                    const oldFileSize = currentRecording.fileSize;
+                    const newFileSize = updatedRecording.fileSize;
+
                     // Update current recording reference
                     currentRecording = updatedRecording;
 
-                    // Update metadata display without interrupting playback
-                    updateMetadataDisplay(updatedRecording);
+                    // If video just became available (fileSize went from 0 to non-zero), reload video
+                    if (oldFileSize === 0 && newFileSize > 0) {
+                        console.log('Video file now available, reloading...');
+                        loadVideo(updatedRecording);
+                    } else {
+                        // Just update metadata display without interrupting playback
+                        updateMetadataDisplay(updatedRecording);
+                    }
                 }
             }
 
@@ -294,9 +308,14 @@ async function checkForNewRecordings() {
 
 // Check if metadata has changed between two recordings
 function hasMetadataChanged(oldRecording, newRecording) {
+    // Check if shotMetadata changed
     const oldMeta = JSON.stringify(oldRecording.shotMetadata || null);
     const newMeta = JSON.stringify(newRecording.shotMetadata || null);
-    return oldMeta !== newMeta;
+
+    // Check if fileSize changed from 0 to non-zero (video extraction completed)
+    const fileSizeChanged = oldRecording.fileSize === 0 && newRecording.fileSize > 0;
+
+    return oldMeta !== newMeta || fileSizeChanged;
 }
 
 // Update metadata display without interrupting playback
