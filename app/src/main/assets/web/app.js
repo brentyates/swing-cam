@@ -280,7 +280,26 @@ async function checkForNewRecordings() {
                 }
             }
         } else {
-            // Same count - check if current recording's metadata was updated
+            // Same count - check if newest recording just became ready OR current recording's metadata was updated
+
+            // First, check if the newest recording just became ready (fileSize went from 0 to non-zero)
+            if (newRecordings.length > 0 && recordings.length > 0) {
+                const newestNew = newRecordings[0];
+                const newestOld = recordings[0];
+
+                // If newest recording just became ready, auto-load it
+                if (newestNew.filename === newestOld.filename &&
+                    newestOld.fileSize === 0 &&
+                    newestNew.fileSize > 0) {
+                    console.log('Newest recording just became ready, auto-loading...');
+                    recordings = newRecordings;
+                    renderRecordingsList();
+                    loadVideo(newestNew);
+                    return; // Exit early, we've handled the update
+                }
+            }
+
+            // Otherwise, check if current recording's metadata was updated
             if (currentRecording) {
                 const updatedRecording = newRecordings.find(r => r.filename === currentRecording.filename);
                 if (updatedRecording && hasMetadataChanged(currentRecording, updatedRecording)) {
