@@ -267,10 +267,46 @@ async function checkForNewRecordings() {
                     showNoVideoMessage(true);
                 }
             }
+        } else {
+            // Same count - check if current recording's metadata was updated
+            if (currentRecording) {
+                const updatedRecording = newRecordings.find(r => r.filename === currentRecording.filename);
+                if (updatedRecording && hasMetadataChanged(currentRecording, updatedRecording)) {
+                    console.log('Metadata updated for current recording!');
+
+                    // Update current recording reference
+                    currentRecording = updatedRecording;
+
+                    // Update metadata display without interrupting playback
+                    updateMetadataDisplay(updatedRecording);
+                }
+            }
+
+            // Always update recordings list in case any metadata changed
+            recordings = newRecordings;
+            renderRecordingsList();
         }
     } catch (error) {
         console.error('Polling error:', error);
         updateStatus('error', 'Connection lost');
+    }
+}
+
+// Check if metadata has changed between two recordings
+function hasMetadataChanged(oldRecording, newRecording) {
+    const oldMeta = JSON.stringify(oldRecording.shotMetadata || null);
+    const newMeta = JSON.stringify(newRecording.shotMetadata || null);
+    return oldMeta !== newMeta;
+}
+
+// Update metadata display without interrupting playback
+function updateMetadataDisplay(recording) {
+    if (recording.shotMetadata && (recording.shotMetadata.ballData || recording.shotMetadata.clubData)) {
+        const metadataHtml = formatShotMetadata(recording.shotMetadata);
+        videoMetadata.innerHTML = metadataHtml;
+        videoMetadata.style.display = 'block';
+    } else {
+        videoMetadata.style.display = 'none';
     }
 }
 
