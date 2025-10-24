@@ -28,6 +28,7 @@
   - Metadata stored in recording .json files
   - Metadata displayed in Android recordings list with formatted values
   - Metadata displayed in web interface with detailed grid layout
+  - Web interface auto-updates metadata when club data arrives (no manual refresh)
   - Full support for optional fields (different launch monitors provide different data)
 
 ## Backlog 📋

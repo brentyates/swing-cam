@@ -133,7 +133,8 @@ adb shell run-as com.example.swingcam ls files/recordings
 **Config.kt**
 ```kotlin
 data class Config(
-    val duration: Int = 5  // Only configurable setting
+    val duration: Int = 5,  // Recording duration in seconds
+    val postShotDelay: Int = 500  // Delay after shot detection before stopping
 )
 ```
 
@@ -144,7 +145,34 @@ data class RecordingMetadata(
     val timestamp: String,
     val duration: Int,
     val fileSize: Long,
-    val filePath: String
+    val filePath: String,
+    val shotMetadata: ShotMetadata? = null  // Optional shot data from launch monitor
+)
+```
+
+**ShotMetadata.kt**
+```kotlin
+data class ShotMetadata(
+    val ballData: BallData? = null,     // Ball flight metrics (12 fields)
+    val clubData: ClubData? = null,     // Club performance metrics (9 fields)
+    val timestamp: Long = System.currentTimeMillis()
+)
+
+data class BallData(
+    val ballSpeed: Double? = null,           // mph or km/h
+    val launchAngle: Double? = null,         // degrees
+    val launchDirection: Double? = null,     // degrees
+    val spinRate: Int? = null,               // rpm
+    val carryDistance: Double? = null,       // yards or meters
+    // ... 7 more optional fields (see ShotMetadata.kt)
+)
+
+data class ClubData(
+    val clubSpeed: Double? = null,           // mph or km/h
+    val clubType: String? = null,            // e.g., "Driver", "7-iron"
+    val smashFactor: Double? = null,         // ratio
+    val attackAngle: Double? = null,         // degrees
+    // ... 5 more optional fields (see ShotMetadata.kt)
 )
 ```
 
@@ -159,9 +187,12 @@ data class RecordingMetadata(
 
 **Launch Monitor Mode:**
 - `POST /api/lm/arm` - Arm launch monitor (start continuous recording)
-- `POST /api/lm/shot-detected` - Extract last N seconds from buffer
+- `POST /api/lm/shot-detected` - Extract last N seconds from buffer (accepts optional ball data)
 - `POST /api/lm/cancel` - Cancel launch monitor mode
 - `GET /api/lm/status` - Get launch monitor status
+
+**Shot Metadata:**
+- `PATCH /api/recordings/{filename}/metadata` - Update shot metadata (typically club data sent after ball data)
 
 **Web Interface:**
 - `GET /` - Serve web interface (index.html)
@@ -188,9 +219,33 @@ app/files/
 ├── config.json                    # App configuration
 └── recordings/
     ├── swing_20241022_143530.mp4  # Video file
-    ├── swing_20241022_143530.json # Metadata
+    ├── swing_20241022_143530.json # Metadata (includes optional shot data)
     ├── swing_20241022_144120.mp4
     └── swing_20241022_144120.json
+```
+
+**Metadata JSON Structure:**
+```json
+{
+  "filename": "swing_20241022_143530.mp4",
+  "timestamp": "2024-10-22 14:35:30",
+  "duration": 2,
+  "fileSize": 12450000,
+  "filePath": "/data/.../recordings/swing_20241022_143530.mp4",
+  "shotMetadata": {
+    "ballData": {
+      "ballSpeed": 165.3,
+      "launchAngle": 12.5,
+      "carryDistance": 275.5
+    },
+    "clubData": {
+      "clubSpeed": 112.5,
+      "clubType": "Driver",
+      "smashFactor": 1.47
+    },
+    "timestamp": 1729612530000
+  }
+}
 ```
 
 ## Critical Implementation Details
@@ -467,6 +522,9 @@ Manual testing checklist:
 - [ ] DELETE /api/recordings clears all
 - [ ] GET /api/recordings/{filename}/stream returns video with range support
 - [ ] GET /api/camera/preview returns JPEG snapshot
+- [ ] POST /api/lm/shot-detected with ball data saves metadata
+- [ ] PATCH /api/recordings/{filename}/metadata updates club data
+- [ ] GET /api/recordings includes shotMetadata in response
 
 **Web Interface**
 - [ ] Open http://[phone-ip]:8080 in browser
@@ -476,6 +534,9 @@ Manual testing checklist:
 - [ ] Video seeking/scrubbing works smoothly
 - [ ] Enable live preview shows camera feed (~1fps)
 - [ ] Responsive design works on mobile and desktop
+- [ ] Shot metadata displays in video player when available
+- [ ] Club data auto-updates within 2.5s when added via PATCH
+- [ ] Recordings list shows ball/club data summary
 
 **Edge Cases**
 - [ ] Recording while already recording (rejected)
@@ -493,6 +554,17 @@ Manual testing checklist:
   - HTTP range request support for video seeking
   - Live camera preview (toggle on/off)
   - Implementation details: [WEB_INTERFACE_PLAN.md](docs/WEB_INTERFACE_PLAN.md)
+
+- **Shot Metadata from Launch Monitor** (October 2025) - Complete launch monitor integration with shot data capture
+  - Ball data fields: ball speed, launch angle, spin rate, carry distance, etc. (12 total)
+  - Club data fields: club speed, club path, face angle, smash factor, etc. (9 total)
+  - All fields optional to support different launch monitor capabilities
+  - Two-step workflow: ball data sent with shot-detected, club data sent separately via PATCH
+  - Metadata stored in recording JSON files alongside videos
+  - Displayed in Android app recordings list with key metrics
+  - Displayed in web interface with detailed grid layout
+  - Web interface auto-updates when club data arrives (no refresh needed)
+  - Complete API documentation in [USAGE.md](docs/USAGE.md)
 
 ## Future Enhancements
 
