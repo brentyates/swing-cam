@@ -212,7 +212,19 @@ class RecordingsAdapter(
                         ball.ballSpeed?.let { add("Ball: ${String.format("%.1f", it)} mph") }
                         ball.carryDistance?.let { add("Carry: ${String.format("%.0f", it)} yds") }
                         ball.launchAngle?.let { add("Launch: ${String.format("%.1f", it)}°") }
-                        ball.spinRate?.let { add("Spin: $it rpm") }
+                        // Prefer showing backspin/sidespin over total spin
+                        ball.backSpin?.let { add("Back: $it rpm") }
+                        ball.sideSpin?.let { add("Side: $it rpm") }
+                        // Fallback to total spin with axis if back/side not available
+                        if (ball.backSpin == null && ball.sideSpin == null) {
+                            ball.spinRate?.let {
+                                if (ball.spinAxis != null) {
+                                    add("Spin: $it rpm (${String.format("%.1f", ball.spinAxis)}°)")
+                                } else {
+                                    add("Spin: $it rpm")
+                                }
+                            }
+                        }
                     }
                     if (ballInfo.isNotEmpty()) {
                         metadataLines.add(ballInfo.joinToString(" | "))
@@ -224,7 +236,24 @@ class RecordingsAdapter(
                         club.clubType?.let { add(it) }
                         club.clubSpeed?.let { add("${String.format("%.1f", it)} mph") }
                         club.smashFactor?.let { add("Smash: ${String.format("%.2f", it)}") }
-                        club.attackAngle?.let { add("Attack: ${String.format("%.1f", it)}°") }
+                        club.clubPath?.let {
+                            val pathDir = if (it >= 0) "I-O" else "O-I"
+                            add("Path: ${String.format("%.1f", kotlin.math.abs(it))}° $pathDir")
+                        }
+                        club.faceAngle?.let {
+                            val faceDir = if (it >= 0) "O" else "C"
+                            add("Face: ${String.format("%.1f", kotlin.math.abs(it))}° $faceDir")
+                        }
+                        club.faceToPath?.let {
+                            val ftpDir = if (it >= 0) "C" else "O"
+                            add("F2P: ${String.format("%.1f", kotlin.math.abs(it))}° $ftpDir")
+                        }
+                        club.attackAngle?.let {
+                            val attackDir = if (it >= 0) "U" else "D"
+                            add("Attack: ${String.format("%.1f", kotlin.math.abs(it))}° $attackDir")
+                        }
+                        club.dynamicLoft?.let { add("Loft: ${String.format("%.1f", it)}°") }
+                        club.lowPoint?.let { add("Low: ${String.format("%.1f", it)}\"") }
                     }
                     if (clubInfo.isNotEmpty()) {
                         metadataLines.add(clubInfo.joinToString(" | "))

@@ -509,8 +509,19 @@ function formatShotMetadata(shotMetadata) {
         if (ball.launchDirection !== undefined) {
             html += `<div class="metadata-item"><span class="label">Launch Direction:</span><span class="value">${ball.launchDirection.toFixed(1)}°</span></div>`;
         }
-        if (ball.spinRate !== undefined) {
+        // Prefer showing backspin/sidespin over total spin
+        if (ball.backSpin !== undefined) {
+            html += `<div class="metadata-item"><span class="label">Back Spin:</span><span class="value">${ball.backSpin} rpm</span></div>`;
+        }
+        if (ball.sideSpin !== undefined) {
+            html += `<div class="metadata-item"><span class="label">Side Spin:</span><span class="value">${ball.sideSpin} rpm</span></div>`;
+        }
+        // Fallback to total spin with axis if back/side not available
+        if (ball.backSpin === undefined && ball.sideSpin === undefined && ball.spinRate !== undefined) {
             html += `<div class="metadata-item"><span class="label">Spin Rate:</span><span class="value">${ball.spinRate} rpm</span></div>`;
+            if (ball.spinAxis !== undefined) {
+                html += `<div class="metadata-item"><span class="label">Spin Axis:</span><span class="value">${ball.spinAxis.toFixed(1)}°</span></div>`;
+            }
         }
         if (ball.carryDistance !== undefined) {
             html += `<div class="metadata-item"><span class="label">Carry:</span><span class="value">${ball.carryDistance.toFixed(0)} yds</span></div>`;
@@ -540,16 +551,26 @@ function formatShotMetadata(shotMetadata) {
             html += `<div class="metadata-item"><span class="label">Smash Factor:</span><span class="value">${club.smashFactor.toFixed(2)}</span></div>`;
         }
         if (club.attackAngle !== undefined) {
-            html += `<div class="metadata-item"><span class="label">Attack Angle:</span><span class="value">${club.attackAngle.toFixed(1)}°</span></div>`;
+            const attackDir = club.attackAngle >= 0 ? 'U' : 'D'; // Up or Down
+            html += `<div class="metadata-item"><span class="label">Attack Angle:</span><span class="value">${Math.abs(club.attackAngle).toFixed(1)}° ${attackDir}</span></div>`;
         }
         if (club.clubPath !== undefined) {
-            html += `<div class="metadata-item"><span class="label">Club Path:</span><span class="value">${club.clubPath.toFixed(1)}°</span></div>`;
+            const pathDir = club.clubPath >= 0 ? 'I-O' : 'O-I'; // In-to-Out or Out-to-In
+            html += `<div class="metadata-item"><span class="label">Club Path:</span><span class="value">${Math.abs(club.clubPath).toFixed(1)}° ${pathDir}</span></div>`;
         }
         if (club.faceAngle !== undefined) {
-            html += `<div class="metadata-item"><span class="label">Face Angle:</span><span class="value">${club.faceAngle.toFixed(1)}°</span></div>`;
+            const faceDir = club.faceAngle >= 0 ? 'O' : 'C'; // Open or Closed
+            html += `<div class="metadata-item"><span class="label">Face Angle:</span><span class="value">${Math.abs(club.faceAngle).toFixed(1)}° ${faceDir}</span></div>`;
+        }
+        if (club.faceToPath !== undefined) {
+            const ftpDir = club.faceToPath >= 0 ? 'C' : 'O'; // Closed or Open
+            html += `<div class="metadata-item"><span class="label">Face to Path:</span><span class="value">${Math.abs(club.faceToPath).toFixed(1)}° ${ftpDir}</span></div>`;
         }
         if (club.dynamicLoft !== undefined) {
             html += `<div class="metadata-item"><span class="label">Dynamic Loft:</span><span class="value">${club.dynamicLoft.toFixed(1)}°</span></div>`;
+        }
+        if (club.lowPoint !== undefined) {
+            html += `<div class="metadata-item"><span class="label">Low Point:</span><span class="value">${club.lowPoint.toFixed(1)}"</span></div>`;
         }
 
         html += '</div></div>';
