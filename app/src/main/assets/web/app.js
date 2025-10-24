@@ -195,6 +195,13 @@ function loadVideo(recording) {
 // Video loaded event handler
 function onVideoLoaded() {
     console.log('Video loaded successfully');
+
+    // Try to auto-play (in case initial play() was blocked)
+    if (videoPlayer.paused) {
+        videoPlayer.play().catch(error => {
+            console.warn('Auto-play prevented:', error);
+        });
+    }
 }
 
 // Video error event handler
