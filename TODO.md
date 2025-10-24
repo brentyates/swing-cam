@@ -35,7 +35,35 @@
 
 ### High Priority
 
+- [ ] **Convert Recording Duration from Seconds to Milliseconds**
+  - Change `Config.duration` from seconds (Int) to milliseconds (Int) for consistency with `postShotDelay`
+  - Update default from 5 seconds (5000ms) to 2500ms (2.5 seconds)
+  - Update `CameraManager.kt` to remove `* 1000` conversion
+  - Provides finer control and captures full swing start (current 2s sometimes misses beginning)
+
 ### Medium Priority
+
+- [ ] **Optional Putt Filtering**
+  - Add config option `savePutts: Boolean = true` to automatically discard putter recordings
+  - When club data arrives with `clubType` indicating putter, auto-delete the recording and metadata
+  - Keep recordings list clean during full swing practice on simulator
+  - Check for putter in both `/api/lm/shot-detected` and `PATCH /metadata` endpoints
+
+- [ ] **Shot History Filtering and Grouping**
+  - Advanced filtering UI to find shots by criteria:
+    - Filter by club type (all drivers, all 7-irons, etc.)
+    - Filter by shot quality metrics (ball speed range, carry distance, spin rate, etc.)
+    - Filter by swing characteristics (club path, face angle, attack angle ranges)
+    - Find "bad shots" - outliers based on configurable thresholds (e.g., club path > +5° or < -5°)
+    - Date range filtering
+    - Combine multiple criteria (e.g., "Driver shots with slice path")
+  - Group/organize recordings by:
+    - Club type
+    - Date/session
+    - Shot quality buckets (good/average/poor based on metrics)
+  - Save custom filter presets for quick access
+  - Show statistics for filtered groups (avg carry, avg ball speed, etc.)
+  - Both Android app and web interface support
 
 - [ ] **Screen Rotation/Orientation Support**
   - Ensure all screens work in both portrait and landscape
