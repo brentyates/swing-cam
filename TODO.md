@@ -19,20 +19,21 @@
   - Live camera preview (toggle on/off, ~1fps)
   - Mobile-friendly responsive design
   - Golf-themed UI matching Android app
+- [x] Shot Metadata from Launch Monitor (October 2025)
+  - Ball data fields (ball speed, launch angle, spin rate, carry distance, etc.)
+  - Club data fields (club speed, club path, face angle, attack angle, etc.)
+  - `/api/lm/shot-detected` accepts ball data in request body
+  - `PATCH /api/recordings/{filename}/metadata` endpoint to update club data separately
+  - Club data updates matched to correct video by filename
+  - Metadata stored in recording .json files
+  - Metadata displayed in Android recordings list with formatted values
+  - Metadata displayed in web interface with detailed grid layout
+  - Web interface auto-updates metadata when club data arrives (no manual refresh)
+  - Full support for optional fields (different launch monitors provide different data)
 
 ## Backlog 📋
 
 ### High Priority
-
-- [ ] **Shot Metadata from Launch Monitor**
-  - Add ball data fields (ball speed, launch angle, spin rate, carry distance, etc.)
-  - Add club data fields (club speed, club path, face angle, attack angle, etc.)
-  - Modify `/api/lm/shot-detected` to accept ball data in request body
-  - Create endpoint to update club data (sent separately after ball data)
-  - Ensure club data updates are matched to the correct video (by filename or timestamp)
-  - Store metadata alongside video .json files
-  - Display metadata in recordings list/detail view
-  - Display metadata in web interface alongside video playback
 
 ### Medium Priority
 

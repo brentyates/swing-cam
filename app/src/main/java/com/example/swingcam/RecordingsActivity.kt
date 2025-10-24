@@ -202,6 +202,45 @@ class RecordingsAdapter(
             binding.timestampText.text = recording.timestamp
             binding.detailsText.text = "${recording.duration}s • ${formatFileSize(recording.fileSize)}"
 
+            // Display shot metadata if available
+            val shotMetadata = recording.shotMetadata
+            if (shotMetadata != null && (shotMetadata.ballData != null || shotMetadata.clubData != null)) {
+                val metadataLines = mutableListOf<String>()
+
+                shotMetadata.ballData?.let { ball ->
+                    val ballInfo = buildList {
+                        ball.ballSpeed?.let { add("Ball: ${String.format("%.1f", it)} mph") }
+                        ball.carryDistance?.let { add("Carry: ${String.format("%.0f", it)} yds") }
+                        ball.launchAngle?.let { add("Launch: ${String.format("%.1f", it)}°") }
+                        ball.spinRate?.let { add("Spin: $it rpm") }
+                    }
+                    if (ballInfo.isNotEmpty()) {
+                        metadataLines.add(ballInfo.joinToString(" | "))
+                    }
+                }
+
+                shotMetadata.clubData?.let { club ->
+                    val clubInfo = buildList {
+                        club.clubType?.let { add(it) }
+                        club.clubSpeed?.let { add("${String.format("%.1f", it)} mph") }
+                        club.smashFactor?.let { add("Smash: ${String.format("%.2f", it)}") }
+                        club.attackAngle?.let { add("Attack: ${String.format("%.1f", it)}°") }
+                    }
+                    if (clubInfo.isNotEmpty()) {
+                        metadataLines.add(clubInfo.joinToString(" | "))
+                    }
+                }
+
+                if (metadataLines.isNotEmpty()) {
+                    binding.shotMetadataText.text = metadataLines.joinToString("\n")
+                    binding.shotMetadataText.visibility = View.VISIBLE
+                } else {
+                    binding.shotMetadataText.visibility = View.GONE
+                }
+            } else {
+                binding.shotMetadataText.visibility = View.GONE
+            }
+
             binding.playButton.setOnClickListener {
                 onPlay(recording)
             }

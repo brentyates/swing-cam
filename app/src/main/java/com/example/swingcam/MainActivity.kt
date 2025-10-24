@@ -162,12 +162,25 @@ class MainActivity : AppCompatActivity() {
         cameraManager.onExtractionComplete = { outputFile ->
             // Called when background extraction finishes
             try {
-                val metadata = RecordingMetadata.fromVideoFile(outputFile, config)
-                repository.saveMetadata(metadata)
-                Log.d(TAG, "Metadata saved for ${outputFile.name}")
+                // Load existing metadata and update with actual file size
+                val existingMetadata = repository.getRecording(outputFile.name)
+                if (existingMetadata != null) {
+                    val updatedMetadata = existingMetadata.copy(fileSize = outputFile.length())
+                    repository.saveMetadata(updatedMetadata)
+                    Log.d(TAG, "Metadata updated with file size for ${outputFile.name}")
 
-                runOnUiThread {
-                    playRecordingInline(metadata)
+                    runOnUiThread {
+                        playRecordingInline(updatedMetadata)
+                    }
+                } else {
+                    // Fallback: create metadata from scratch (for regular recordings)
+                    val metadata = RecordingMetadata.fromVideoFile(outputFile, config)
+                    repository.saveMetadata(metadata)
+                    Log.d(TAG, "Metadata created for ${outputFile.name}")
+
+                    runOnUiThread {
+                        playRecordingInline(metadata)
+                    }
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to save metadata after extraction", e)
@@ -438,12 +451,19 @@ class MainActivity : AppCompatActivity() {
 
             override fun getRecordings(): List<Map<String, Any>> {
                 return repository.getAllRecordings().map { metadata ->
-                    mapOf(
+                    val baseMap = mutableMapOf<String, Any>(
                         "filename" to metadata.filename,
                         "timestamp" to metadata.timestamp,
                         "duration" to metadata.duration,
                         "fileSize" to metadata.fileSize
                     )
+
+                    // Include shotMetadata if present
+                    metadata.shotMetadata?.let { shotMetadata ->
+                        baseMap["shotMetadata"] = shotMetadata
+                    }
+
+                    baseMap
                 }
             }
 
@@ -471,17 +491,31 @@ class MainActivity : AppCompatActivity() {
                 return cameraManager.armLaunchMonitor(repository.recordingsDir)
             }
 
-            override suspend fun shotDetected(): Map<String, Any> {
+            override suspend fun shotDetected(ballData: com.example.swingcam.data.BallData?): Map<String, Any> {
                 val filename = RecordingMetadata.generateFilename()
                 val outputFile = File(repository.recordingsDir, filename)
 
                 try {
+                    // Create and save metadata immediately with ball data (fileSize=0 placeholder)
+                    val metadata = RecordingMetadata(
+                        filename = filename,
+                        timestamp = RecordingMetadata.generateTimestamp(),
+                        duration = config.duration,
+                        fileSize = 0, // Will be updated when extraction completes
+                        filePath = outputFile.absolutePath,
+                        shotMetadata = if (ballData != null) com.example.swingcam.data.ShotMetadata(ballData = ballData) else null
+                    )
+                    repository.saveMetadata(metadata)
+                    Log.d(TAG, "Metadata saved immediately for ${filename}")
+
                     // shotDetected now returns immediately and extracts in background
-                    // Metadata will be saved via onExtractionComplete callback
+                    // File size will be updated via onExtractionComplete callback
                     val result = cameraManager.shotDetected(outputFile, config.duration, config.postShotDelay)
 
                     if (result["status"] != "success") {
                         Log.e(TAG, "Shot detection failed: ${result["message"]}")
+                        // Delete the metadata since video failed
+                        repository.deleteRecording(filename)
                     }
 
                     return result
@@ -500,6 +534,29 @@ class MainActivity : AppCompatActivity() {
 
             override fun getLMStatus(): Map<String, Any> {
                 return cameraManager.getLMStatus()
+            }
+
+            override fun updateShotMetadata(filename: String, clubData: com.example.swingcam.data.ClubData?): Boolean {
+                return try {
+                    val metadata = repository.getRecording(filename)
+                    if (metadata != null) {
+                        val updatedShotMetadata = if (metadata.shotMetadata != null) {
+                            metadata.shotMetadata.copy(clubData = clubData)
+                        } else {
+                            com.example.swingcam.data.ShotMetadata(clubData = clubData)
+                        }
+                        val updatedMetadata = metadata.copy(shotMetadata = updatedShotMetadata)
+                        repository.saveMetadata(updatedMetadata)
+                        Log.d(TAG, "Updated shot metadata for $filename with club data")
+                        true
+                    } else {
+                        Log.e(TAG, "Recording not found: $filename")
+                        false
+                    }
+                } catch (e: Exception) {
+                    Log.e(TAG, "Failed to update shot metadata", e)
+                    false
+                }
             }
         }
     }

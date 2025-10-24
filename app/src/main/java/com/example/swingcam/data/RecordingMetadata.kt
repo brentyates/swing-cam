@@ -15,7 +15,8 @@ data class RecordingMetadata(
     val timestamp: String,
     val duration: Int,
     val fileSize: Long = 0,
-    val filePath: String
+    val filePath: String,
+    val shotMetadata: ShotMetadata? = null  // Optional shot data from launch monitor
 ) {
     companion object {
         private val dateFormat = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US)

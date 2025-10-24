@@ -19,6 +19,7 @@ const loadingMessage = document.getElementById('loadingMessage');
 const videoInfo = document.getElementById('videoInfo');
 const videoTitle = document.getElementById('videoTitle');
 const videoDuration = document.getElementById('videoDuration');
+const videoMetadata = document.getElementById('videoMetadata');
 const recordingsList = document.getElementById('recordingsList');
 const statusDot = document.getElementById('statusDot');
 const statusText = document.getElementById('statusText');
@@ -113,12 +114,39 @@ function createRecordingItem(recording, index) {
     const duration = formatDuration(recording.duration);
     const fileSize = formatFileSize(recording.fileSize);
 
+    // Build shot metadata display
+    let metadataHtml = '';
+    if (recording.shotMetadata) {
+        const ballData = recording.shotMetadata.ballData;
+        const clubData = recording.shotMetadata.clubData;
+
+        if (ballData || clubData) {
+            metadataHtml = '<div class="recording-metadata">';
+
+            if (ballData) {
+                const ballInfo = [];
+                if (ballData.ballSpeed) ballInfo.push(`${ballData.ballSpeed.toFixed(1)} mph`);
+                if (ballData.carryDistance) ballInfo.push(`${ballData.carryDistance.toFixed(0)} yds`);
+                if (ballInfo.length > 0) {
+                    metadataHtml += `<div class="metadata-line">${ballInfo.join(' • ')}</div>`;
+                }
+            }
+
+            if (clubData && clubData.clubType) {
+                metadataHtml += `<div class="metadata-line">${clubData.clubType}</div>`;
+            }
+
+            metadataHtml += '</div>';
+        }
+    }
+
     item.innerHTML = `
         <div class="recording-name">${timestamp}</div>
         <div class="recording-info">
             <span>${duration}</span>
             <span>${fileSize}</span>
         </div>
+        ${metadataHtml}
     `;
 
     item.addEventListener('click', () => loadVideo(recording));
@@ -143,6 +171,15 @@ function loadVideo(recording) {
     videoTitle.textContent = formatTimestamp(recording.timestamp);
     videoDuration.textContent = `Duration: ${formatDuration(recording.duration)} • Size: ${formatFileSize(recording.fileSize)}`;
     videoInfo.style.display = 'flex';
+
+    // Update shot metadata if available
+    if (recording.shotMetadata && (recording.shotMetadata.ballData || recording.shotMetadata.clubData)) {
+        const metadataHtml = formatShotMetadata(recording.shotMetadata);
+        videoMetadata.innerHTML = metadataHtml;
+        videoMetadata.style.display = 'block';
+    } else {
+        videoMetadata.style.display = 'none';
+    }
 
     // Highlight active recording in list
     renderRecordingsList();
@@ -230,10 +267,46 @@ async function checkForNewRecordings() {
                     showNoVideoMessage(true);
                 }
             }
+        } else {
+            // Same count - check if current recording's metadata was updated
+            if (currentRecording) {
+                const updatedRecording = newRecordings.find(r => r.filename === currentRecording.filename);
+                if (updatedRecording && hasMetadataChanged(currentRecording, updatedRecording)) {
+                    console.log('Metadata updated for current recording!');
+
+                    // Update current recording reference
+                    currentRecording = updatedRecording;
+
+                    // Update metadata display without interrupting playback
+                    updateMetadataDisplay(updatedRecording);
+                }
+            }
+
+            // Always update recordings list in case any metadata changed
+            recordings = newRecordings;
+            renderRecordingsList();
         }
     } catch (error) {
         console.error('Polling error:', error);
         updateStatus('error', 'Connection lost');
+    }
+}
+
+// Check if metadata has changed between two recordings
+function hasMetadataChanged(oldRecording, newRecording) {
+    const oldMeta = JSON.stringify(oldRecording.shotMetadata || null);
+    const newMeta = JSON.stringify(newRecording.shotMetadata || null);
+    return oldMeta !== newMeta;
+}
+
+// Update metadata display without interrupting playback
+function updateMetadataDisplay(recording) {
+    if (recording.shotMetadata && (recording.shotMetadata.ballData || recording.shotMetadata.clubData)) {
+        const metadataHtml = formatShotMetadata(recording.shotMetadata);
+        videoMetadata.innerHTML = metadataHtml;
+        videoMetadata.style.display = 'block';
+    } else {
+        videoMetadata.style.display = 'none';
     }
 }
 
@@ -371,6 +444,74 @@ function formatFileSize(bytes) {
     } else {
         return `${(bytes / (1024 * 1024 * 1024)).toFixed(1)} GB`;
     }
+}
+
+// Format shot metadata for display
+function formatShotMetadata(shotMetadata) {
+    let html = '<div class="shot-metadata-grid">';
+
+    // Ball data section
+    if (shotMetadata.ballData) {
+        const ball = shotMetadata.ballData;
+        html += '<div class="metadata-section"><h4>Ball Data</h4><div class="metadata-items">';
+
+        if (ball.ballSpeed !== undefined) {
+            html += `<div class="metadata-item"><span class="label">Ball Speed:</span><span class="value">${ball.ballSpeed.toFixed(1)} mph</span></div>`;
+        }
+        if (ball.launchAngle !== undefined) {
+            html += `<div class="metadata-item"><span class="label">Launch Angle:</span><span class="value">${ball.launchAngle.toFixed(1)}°</span></div>`;
+        }
+        if (ball.launchDirection !== undefined) {
+            html += `<div class="metadata-item"><span class="label">Launch Direction:</span><span class="value">${ball.launchDirection.toFixed(1)}°</span></div>`;
+        }
+        if (ball.spinRate !== undefined) {
+            html += `<div class="metadata-item"><span class="label">Spin Rate:</span><span class="value">${ball.spinRate} rpm</span></div>`;
+        }
+        if (ball.carryDistance !== undefined) {
+            html += `<div class="metadata-item"><span class="label">Carry:</span><span class="value">${ball.carryDistance.toFixed(0)} yds</span></div>`;
+        }
+        if (ball.totalDistance !== undefined) {
+            html += `<div class="metadata-item"><span class="label">Total:</span><span class="value">${ball.totalDistance.toFixed(0)} yds</span></div>`;
+        }
+        if (ball.maxHeight !== undefined) {
+            html += `<div class="metadata-item"><span class="label">Max Height:</span><span class="value">${ball.maxHeight.toFixed(0)} yds</span></div>`;
+        }
+
+        html += '</div></div>';
+    }
+
+    // Club data section
+    if (shotMetadata.clubData) {
+        const club = shotMetadata.clubData;
+        html += '<div class="metadata-section"><h4>Club Data</h4><div class="metadata-items">';
+
+        if (club.clubType) {
+            html += `<div class="metadata-item"><span class="label">Club:</span><span class="value">${club.clubType}</span></div>`;
+        }
+        if (club.clubSpeed !== undefined) {
+            html += `<div class="metadata-item"><span class="label">Club Speed:</span><span class="value">${club.clubSpeed.toFixed(1)} mph</span></div>`;
+        }
+        if (club.smashFactor !== undefined) {
+            html += `<div class="metadata-item"><span class="label">Smash Factor:</span><span class="value">${club.smashFactor.toFixed(2)}</span></div>`;
+        }
+        if (club.attackAngle !== undefined) {
+            html += `<div class="metadata-item"><span class="label">Attack Angle:</span><span class="value">${club.attackAngle.toFixed(1)}°</span></div>`;
+        }
+        if (club.clubPath !== undefined) {
+            html += `<div class="metadata-item"><span class="label">Club Path:</span><span class="value">${club.clubPath.toFixed(1)}°</span></div>`;
+        }
+        if (club.faceAngle !== undefined) {
+            html += `<div class="metadata-item"><span class="label">Face Angle:</span><span class="value">${club.faceAngle.toFixed(1)}°</span></div>`;
+        }
+        if (club.dynamicLoft !== undefined) {
+            html += `<div class="metadata-item"><span class="label">Dynamic Loft:</span><span class="value">${club.dynamicLoft.toFixed(1)}°</span></div>`;
+        }
+
+        html += '</div></div>';
+    }
+
+    html += '</div>';
+    return html;
 }
 
 // Clean up on page unload
