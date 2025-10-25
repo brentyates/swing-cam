@@ -1,7 +1,13 @@
 package com.example.swingcam.camera
 
 import android.content.Context
+import android.hardware.camera2.CameraCharacteristics
+import android.hardware.camera2.CaptureRequest
 import android.util.Log
+import android.util.Range
+import androidx.camera.camera2.interop.Camera2CameraInfo
+import androidx.camera.camera2.interop.Camera2CameraControl
+import androidx.camera.camera2.interop.CaptureRequestOptions
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.ImageCapture
 import androidx.camera.core.ImageCaptureException
@@ -84,10 +90,11 @@ class CameraManager(
             val cameraProvider = cameraProviderFuture.get()
             Log.d(TAG, "Got camera provider")
 
-            // Use highest quality available for slow-motion
-            // Pixel 9 will automatically use its slow-motion capabilities
+            // Prioritize FHD (1080p) for higher FPS (240fps on Pixel 9)
+            // FHD supports up to 240fps slow-motion on Pixel 9
+            // UHD/HIGHEST typically limited to 30-60fps
             val qualitySelector = QualitySelector.fromOrderedList(
-                listOf(Quality.HIGHEST, Quality.UHD, Quality.FHD, Quality.HD)
+                listOf(Quality.FHD, Quality.HD, Quality.UHD)
             )
 
             val recorder = Recorder.Builder()
@@ -96,7 +103,7 @@ class CameraManager(
                 .build()
 
             videoCapture = VideoCapture.withOutput(recorder)
-            Log.d(TAG, "Video capture configured")
+            Log.d(TAG, "Video capture configured with FHD priority for high FPS")
 
             // Setup image capture for preview snapshots
             imageCapture = ImageCapture.Builder()
@@ -127,7 +134,11 @@ class CameraManager(
                     imageCapture
                 )
 
-                Log.d(TAG, "Camera setup complete with preview, video capture, and image capture. Camera ID: ${camera.cameraInfo.cameraSelector}")
+                Log.d(TAG, "Camera bound successfully. Camera ID: ${camera.cameraInfo.cameraSelector}")
+
+                // Query and configure high FPS using Camera2 Interop
+                configureHighFPS(camera)
+
             } catch (e: Exception) {
                 Log.e(TAG, "Camera binding failed", e)
                 throw e
@@ -136,6 +147,55 @@ class CameraManager(
         } catch (e: Exception) {
             Log.e(TAG, "Camera setup failed", e)
             throw e
+        }
+    }
+
+    /**
+     * Configure camera for high FPS (240fps on Pixel 9) using Camera2 Interop
+     */
+    private fun configureHighFPS(camera: androidx.camera.core.Camera) {
+        try {
+            // Get Camera2 camera info to query capabilities
+            val camera2Info = Camera2CameraInfo.from(camera.cameraInfo)
+            val characteristics = camera2Info.getCameraCharacteristic(
+                CameraCharacteristics.CONTROL_AE_AVAILABLE_TARGET_FPS_RANGES
+            )
+
+            if (characteristics != null) {
+                // Log all available FPS ranges
+                Log.d(TAG, "Available FPS ranges:")
+                characteristics.forEach { range ->
+                    Log.d(TAG, "  - ${range.lower} to ${range.upper} fps")
+                }
+
+                // Find the highest FPS range available
+                // Pixel 9 should support [240, 240] for 1080p slow-motion
+                val targetFpsRange = characteristics.maxByOrNull { it.upper } ?: characteristics.firstOrNull()
+
+                if (targetFpsRange != null) {
+                    Log.i(TAG, "Selected FPS range: ${targetFpsRange.lower}-${targetFpsRange.upper} fps")
+
+                    // Set the FPS range using Camera2 interop
+                    val camera2Control = Camera2CameraControl.from(camera.cameraControl)
+                    camera2Control.setCaptureRequestOptions(
+                        CaptureRequestOptions.Builder()
+                            .setCaptureRequestOption(
+                                CaptureRequest.CONTROL_AE_TARGET_FPS_RANGE,
+                                targetFpsRange
+                            )
+                            .build()
+                    )
+
+                    Log.i(TAG, "High FPS mode configured: ${targetFpsRange.upper} fps (slow-motion)")
+                } else {
+                    Log.w(TAG, "No FPS ranges found, using camera defaults")
+                }
+            } else {
+                Log.w(TAG, "Could not query FPS ranges, using camera defaults")
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to configure high FPS mode", e)
+            Log.w(TAG, "Continuing with default FPS settings")
         }
     }
 
