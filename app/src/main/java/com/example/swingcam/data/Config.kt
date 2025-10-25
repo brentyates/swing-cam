@@ -8,7 +8,7 @@ import java.io.File
  * Only duration is configurable - everything else uses Pixel's slow-motion mode
  */
 data class Config(
-    val duration: Int = 2,  // Recording duration in seconds
+    val duration: Int = 2500,  // Recording duration in milliseconds
     val postShotDelay: Int = 500  // Delay in milliseconds after shot detection before stopping recording
 ) {
     companion object {

@@ -133,7 +133,7 @@ adb shell run-as com.example.swingcam ls files/recordings
 **Config.kt**
 ```kotlin
 data class Config(
-    val duration: Int = 5,  // Recording duration in seconds
+    val duration: Int = 2500,  // Recording duration in milliseconds
     val postShotDelay: Int = 500  // Delay after shot detection before stopping
 )
 ```
@@ -261,7 +261,7 @@ app/files/
 
 1. `CameraManager.setupCamera()` - Initialize camera (once)
 2. `CameraManager.startRecording()` - Begin capture
-3. Auto-stop after `config.duration` seconds via `delay()`
+3. Auto-stop after `config.duration` milliseconds via `delay()`
 4. `onRecordingFinished` callback with output file
 5. MainActivity saves metadata and refreshes UI
 
@@ -315,7 +315,7 @@ fun getConfig(): Map<String, Any>
 
 // In MainActivity
 override fun getConfig(): Map<String, Any> {
-    return mapOf("duration" to config.duration)
+    return mapOf("duration" to config.duration)  // Duration in milliseconds
 }
 ```
 
@@ -329,13 +329,13 @@ val config = Config.load(filesDir)
 To change default, edit `Config.kt`:
 ```kotlin
 data class Config(
-    val duration: Int = 10  // Change default here
+    val duration: Int = 2500  // Duration in milliseconds - change default here
 )
 ```
 
 Or save new config:
 ```kotlin
-Config.save(filesDir, Config(duration = 10))
+Config.save(filesDir, Config(duration = 2500))  // 2500ms = 2.5 seconds
 ```
 
 ### Adding Video Playback

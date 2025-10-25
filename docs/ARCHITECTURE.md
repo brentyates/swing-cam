@@ -65,7 +65,7 @@ swing-cam/
 ### 1. Camera Recording
 - **CameraX integration** with highest quality mode
 - **Automatic slow-motion** using Pixel 9's camera capabilities
-- **Configurable duration** (default 5 seconds)
+- **Configurable duration** (default 2500 milliseconds)
 - **Auto-stop** after configured duration
 - **Metadata tracking** for each recording
 

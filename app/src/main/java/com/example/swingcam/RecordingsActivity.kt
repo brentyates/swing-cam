@@ -46,8 +46,8 @@ class RecordingsActivity : AppCompatActivity() {
             val durationText = binding.durationInput.text.toString()
             val duration = durationText.toIntOrNull()
 
-            if (duration == null || duration < 1 || duration > 60) {
-                Toast.makeText(this, "Duration must be between 1-60 seconds", Toast.LENGTH_SHORT).show()
+            if (duration == null || duration < 1000 || duration > 60000) {
+                Toast.makeText(this, "Duration must be between 1000-60000 milliseconds", Toast.LENGTH_SHORT).show()
                 return@setOnClickListener
             }
 
@@ -200,7 +200,7 @@ class RecordingsAdapter(
 
         fun bind(recording: RecordingMetadata) {
             binding.timestampText.text = recording.timestamp
-            binding.detailsText.text = "${recording.duration}s • ${formatFileSize(recording.fileSize)}"
+            binding.detailsText.text = "${String.format("%.1f", recording.duration / 1000.0)}s • ${formatFileSize(recording.fileSize)}"
 
             // Display shot metadata if available
             val shotMetadata = recording.shotMetadata

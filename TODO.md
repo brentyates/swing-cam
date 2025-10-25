@@ -30,16 +30,17 @@
   - Metadata displayed in web interface with detailed grid layout
   - Web interface auto-updates metadata when club data arrives (no manual refresh)
   - Full support for optional fields (different launch monitors provide different data)
+- [x] **Convert Recording Duration from Seconds to Milliseconds** (October 2025)
+  - Changed `Config.duration` from seconds (Int) to milliseconds (Int) for consistency with `postShotDelay`
+  - Updated default to 2500ms (2.5 seconds)
+  - Updated `CameraManager.kt` to remove `* 1000` conversion
+  - Updated UI labels and validation in RecordingsActivity
+  - Updated all documentation files
+  - Provides finer control and captures full swing start
 
 ## Backlog 📋
 
 ### High Priority
-
-- [ ] **Convert Recording Duration from Seconds to Milliseconds**
-  - Change `Config.duration` from seconds (Int) to milliseconds (Int) for consistency with `postShotDelay`
-  - Update default from 5 seconds (5000ms) to 2500ms (2.5 seconds)
-  - Update `CameraManager.kt` to remove `* 1000` conversion
-  - Provides finer control and captures full swing start (current 2s sometimes misses beginning)
 
 ### Medium Priority
 

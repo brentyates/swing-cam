@@ -160,7 +160,7 @@ class CameraManager(
         Log.d(TAG, "Recording started: ${outputFile.name}")
 
         // Auto-stop after configured duration
-        delay((config.duration * 1000).toLong())
+        delay(config.duration.toLong())
         stopRecording()
     }
 
@@ -460,7 +460,7 @@ class CameraManager(
 
     private fun extractLastNSeconds(inputFile: File, outputFile: File, duration: Int): Boolean {
         try {
-            Log.d(TAG, "Extracting last $duration seconds from ${inputFile.name}")
+            Log.d(TAG, "Extracting last $duration milliseconds from ${inputFile.name}")
 
             val extractor = android.media.MediaExtractor()
             extractor.setDataSource(inputFile.absolutePath)
@@ -483,7 +483,7 @@ class CameraManager(
                 return false
             }
 
-            val durationUs = duration * 1_000_000L  // Convert seconds to microseconds
+            val durationUs = duration * 1_000L  // Convert milliseconds to microseconds
             val startTimeUs = maxOf(0L, videoDurationUs - durationUs)
 
             Log.d(TAG, "Video duration: ${videoDurationUs / 1_000_000.0}s, extracting from ${startTimeUs / 1_000_000.0}s")

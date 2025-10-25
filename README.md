@@ -87,11 +87,11 @@ Settings are stored in `config.json` in the app's private storage:
 
 ```json
 {
-  "duration": 5
+  "duration": 2500
 }
 ```
 
-- **duration**: Recording length in seconds
+- **duration**: Recording length in milliseconds
 
 **Note**: Resolution, FPS, and quality are automatically handled by the Pixel 9's slow-motion camera mode. The app uses the highest quality available for the best slow-motion capture.
 
