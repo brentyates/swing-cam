@@ -27,6 +27,7 @@ import androidx.core.content.ContextCompat
 import androidx.core.util.Consumer
 import androidx.lifecycle.LifecycleOwner
 import com.example.swingcam.data.Config
+import com.example.swingcam.data.ShutterMode
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -66,6 +67,9 @@ class CameraManager(
     @Volatile
     private var cachedPreviewFrame: ByteArray? = null
 
+    // Current camera instance for exposure control
+    private var currentCamera: androidx.camera.core.Camera? = null
+
     var isRecording = false
         private set
 
@@ -82,8 +86,8 @@ class CameraManager(
     var onExtractionComplete: ((File) -> Unit)? = null
     var onExtractionError: ((String) -> Unit)? = null
 
-    suspend fun setupCamera() {
-        Log.d(TAG, "Starting camera setup")
+    suspend fun setupCamera(config: Config) {
+        Log.d(TAG, "Starting camera setup with shutter mode: ${config.shutterMode}")
         val cameraProviderFuture = ProcessCameraProvider.getInstance(context)
 
         try {
@@ -134,10 +138,13 @@ class CameraManager(
                     imageCapture
                 )
 
+                // Store camera instance for later exposure adjustments
+                currentCamera = camera
+
                 Log.d(TAG, "Camera bound successfully. Camera ID: ${camera.cameraInfo.cameraSelector}")
 
-                // Query and configure high FPS using Camera2 Interop
-                configureHighFPS(camera)
+                // Configure both FPS and shutter speed using Camera2 Interop
+                configureCameraSettings(camera, config.shutterMode)
 
             } catch (e: Exception) {
                 Log.e(TAG, "Camera binding failed", e)
@@ -151,51 +158,132 @@ class CameraManager(
     }
 
     /**
-     * Configure camera for high FPS (240fps on Pixel 9) using Camera2 Interop
+     * Configure camera settings: high FPS and shutter speed using Camera2 Interop
+     * Must be done together to avoid one overriding the other
      */
-    private fun configureHighFPS(camera: androidx.camera.core.Camera) {
+    private fun configureCameraSettings(camera: androidx.camera.core.Camera, shutterMode: ShutterMode) {
         try {
-            // Get Camera2 camera info to query capabilities
             val camera2Info = Camera2CameraInfo.from(camera.cameraInfo)
-            val characteristics = camera2Info.getCameraCharacteristic(
+            val camera2Control = Camera2CameraControl.from(camera.cameraControl)
+
+            // Start building capture request options
+            val captureRequestBuilder = CaptureRequestOptions.Builder()
+
+            // 1. Configure FPS (high frame rate for slow-motion)
+            val fpsRanges = camera2Info.getCameraCharacteristic(
                 CameraCharacteristics.CONTROL_AE_AVAILABLE_TARGET_FPS_RANGES
             )
 
-            if (characteristics != null) {
-                // Log all available FPS ranges
+            if (fpsRanges != null) {
                 Log.d(TAG, "Available FPS ranges:")
-                characteristics.forEach { range ->
+                fpsRanges.forEach { range ->
                     Log.d(TAG, "  - ${range.lower} to ${range.upper} fps")
                 }
 
-                // Find the highest FPS range available
-                // Pixel 9 should support [240, 240] for 1080p slow-motion
-                val targetFpsRange = characteristics.maxByOrNull { it.upper } ?: characteristics.firstOrNull()
+                // Find the highest FPS range available (240fps on Pixel 9)
+                val targetFpsRange = fpsRanges.maxByOrNull { it.upper } ?: fpsRanges.firstOrNull()
 
                 if (targetFpsRange != null) {
                     Log.i(TAG, "Selected FPS range: ${targetFpsRange.lower}-${targetFpsRange.upper} fps")
-
-                    // Set the FPS range using Camera2 interop
-                    val camera2Control = Camera2CameraControl.from(camera.cameraControl)
-                    camera2Control.setCaptureRequestOptions(
-                        CaptureRequestOptions.Builder()
-                            .setCaptureRequestOption(
-                                CaptureRequest.CONTROL_AE_TARGET_FPS_RANGE,
-                                targetFpsRange
-                            )
-                            .build()
+                    captureRequestBuilder.setCaptureRequestOption(
+                        CaptureRequest.CONTROL_AE_TARGET_FPS_RANGE,
+                        targetFpsRange
                     )
-
-                    Log.i(TAG, "High FPS mode configured: ${targetFpsRange.upper} fps (slow-motion)")
                 } else {
                     Log.w(TAG, "No FPS ranges found, using camera defaults")
                 }
             } else {
                 Log.w(TAG, "Could not query FPS ranges, using camera defaults")
             }
+
+            // 2. Configure shutter speed (exposure time) for motion blur control
+            if (shutterMode != ShutterMode.AUTO) {
+                // Check if manual sensor control is supported
+                val capabilities = camera2Info.getCameraCharacteristic(
+                    CameraCharacteristics.REQUEST_AVAILABLE_CAPABILITIES
+                )
+
+                val supportsManualSensor = capabilities?.contains(
+                    CameraCharacteristics.REQUEST_AVAILABLE_CAPABILITIES_MANUAL_SENSOR
+                ) == true
+
+                if (supportsManualSensor) {
+                    // Get sensor ranges
+                    val exposureTimeRange = camera2Info.getCameraCharacteristic(
+                        CameraCharacteristics.SENSOR_INFO_EXPOSURE_TIME_RANGE
+                    )
+                    val isoRange = camera2Info.getCameraCharacteristic(
+                        CameraCharacteristics.SENSOR_INFO_SENSITIVITY_RANGE
+                    )
+
+                    // Calculate target exposure time in nanoseconds
+                    val (exposureTimeNs, isoValue) = when (shutterMode) {
+                        ShutterMode.FAST_MOTION -> {
+                            // 1/2000s = 500,000 ns, ISO ~1200
+                            Pair(500_000L, 1200)
+                        }
+                        ShutterMode.ULTRA_FAST -> {
+                            // 1/4000s = 250,000 ns, ISO ~2400
+                            Pair(250_000L, 2400)
+                        }
+                        else -> Pair(0L, 0)  // Won't be used
+                    }
+
+                    // Clamp values to device range
+                    val clampedExposureTime = if (exposureTimeRange != null) {
+                        exposureTimeNs.coerceIn(exposureTimeRange.lower, exposureTimeRange.upper)
+                    } else {
+                        exposureTimeNs
+                    }
+
+                    val clampedIso = if (isoRange != null) {
+                        isoValue.coerceIn(isoRange.lower, isoRange.upper)
+                    } else {
+                        isoValue
+                    }
+
+                    Log.i(TAG, "Configuring manual exposure:")
+                    Log.i(TAG, "  Shutter mode: $shutterMode")
+                    Log.i(TAG, "  Exposure time: 1/${(1_000_000_000L / clampedExposureTime).toInt()}s ($clampedExposureTime ns)")
+                    Log.i(TAG, "  ISO: $clampedIso")
+                    if (exposureTimeRange != null) {
+                        Log.d(TAG, "  Device supports: 1/${(1_000_000_000L / exposureTimeRange.lower).toInt()}s to 1/${(1_000_000_000L / exposureTimeRange.upper).toInt()}s")
+                    }
+                    if (isoRange != null) {
+                        Log.d(TAG, "  Device ISO range: ${isoRange.lower} to ${isoRange.upper}")
+                    }
+
+                    // Add manual exposure settings to capture request
+                    captureRequestBuilder
+                        .setCaptureRequestOption(
+                            CaptureRequest.CONTROL_AE_MODE,
+                            CaptureRequest.CONTROL_AE_MODE_OFF  // Disable auto-exposure
+                        )
+                        .setCaptureRequestOption(
+                            CaptureRequest.SENSOR_EXPOSURE_TIME,
+                            clampedExposureTime
+                        )
+                        .setCaptureRequestOption(
+                            CaptureRequest.SENSOR_SENSITIVITY,
+                            clampedIso
+                        )
+
+                    Log.i(TAG, "Manual exposure configured - expect sharp frames")
+                    Log.w(TAG, "Note: Fast shutter requires bright lighting. If too dark, use AUTO mode")
+                } else {
+                    Log.w(TAG, "Manual sensor control not supported, using AUTO exposure")
+                }
+            } else {
+                Log.i(TAG, "Shutter mode: AUTO - camera controls exposure (may have motion blur)")
+            }
+
+            // Apply all settings at once
+            camera2Control.setCaptureRequestOptions(captureRequestBuilder.build())
+            Log.i(TAG, "Camera settings configured successfully")
+
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to configure high FPS mode", e)
-            Log.w(TAG, "Continuing with default FPS settings")
+            Log.e(TAG, "Failed to configure camera settings", e)
+            Log.w(TAG, "Continuing with default camera settings")
         }
     }
 

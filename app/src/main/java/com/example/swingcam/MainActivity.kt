@@ -244,7 +244,7 @@ class MainActivity : AppCompatActivity() {
                     binding.cameraPreview.post {
                         lifecycleScope.launch {
                             try {
-                                cameraManager.setupCamera()
+                                cameraManager.setupCamera(config)
                                 Log.d(TAG, "Camera setup completed successfully")
 
                                 withContext(Dispatchers.Main) {
