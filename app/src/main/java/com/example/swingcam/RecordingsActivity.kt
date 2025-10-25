@@ -5,6 +5,8 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.AdapterView
+import android.widget.ArrayAdapter
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
@@ -14,6 +16,7 @@ import androidx.recyclerview.widget.RecyclerView
 import com.example.swingcam.data.Config
 import com.example.swingcam.data.RecordingMetadata
 import com.example.swingcam.data.RecordingRepository
+import com.example.swingcam.data.ShutterMode
 import com.example.swingcam.databinding.ActivityRecordingsBinding
 import com.example.swingcam.databinding.ItemRecordingBinding
 import java.io.File
@@ -51,7 +54,7 @@ class RecordingsActivity : AppCompatActivity() {
                 return@setOnClickListener
             }
 
-            config = Config(duration = duration, postShotDelay = config.postShotDelay)
+            config = config.copy(duration = duration)
             Config.save(filesDir, config)
             Toast.makeText(this, "Settings saved", Toast.LENGTH_SHORT).show()
         }
@@ -65,10 +68,54 @@ class RecordingsActivity : AppCompatActivity() {
                 return@setOnClickListener
             }
 
-            config = Config(duration = config.duration, postShotDelay = delay)
+            config = config.copy(postShotDelay = delay)
             Config.save(filesDir, config)
             Toast.makeText(this, "Settings saved", Toast.LENGTH_SHORT).show()
         }
+
+        // Setup shutter mode spinner
+        val shutterModes = ShutterMode.values()
+        val shutterModeNames = shutterModes.map { mode ->
+            when (mode) {
+                ShutterMode.AUTO -> "AUTO - Default (may have blur)"
+                ShutterMode.FAST_MOTION -> "FAST MOTION - 1/2000s (outdoor/bright)"
+                ShutterMode.ULTRA_FAST -> "ULTRA FAST - 1/4000s (pro lighting)"
+            }
+        }
+
+        val adapter = ArrayAdapter(this, android.R.layout.simple_spinner_item, shutterModeNames)
+        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+        binding.shutterModeSpinner.adapter = adapter
+
+        // Set current selection
+        val currentModeIndex = shutterModes.indexOf(config.shutterMode)
+        binding.shutterModeSpinner.setSelection(currentModeIndex)
+        updateShutterModeDescription(config.shutterMode)
+
+        // Update description when selection changes
+        binding.shutterModeSpinner.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+            override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
+                updateShutterModeDescription(shutterModes[position])
+            }
+
+            override fun onNothingSelected(parent: AdapterView<*>?) {}
+        }
+
+        binding.saveShutterModeButton.setOnClickListener {
+            val selectedMode = shutterModes[binding.shutterModeSpinner.selectedItemPosition]
+            config = config.copy(shutterMode = selectedMode)
+            Config.save(filesDir, config)
+            Toast.makeText(this, "Shutter mode saved. Restart app to apply.", Toast.LENGTH_LONG).show()
+        }
+    }
+
+    private fun updateShutterModeDescription(mode: ShutterMode) {
+        val description = when (mode) {
+            ShutterMode.AUTO -> "Camera controls exposure (~1/480s). Best for indoor/low-light. May have ~3-4 inches of motion blur on club head."
+            ShutterMode.FAST_MOTION -> "Fixed 1/2000s shutter. Sharp frames (~0.85\" blur). Requires bright outdoor or well-lit indoor lighting. May be grainy in dim light."
+            ShutterMode.ULTRA_FAST -> "Fixed 1/4000s shutter. Professional quality (~0.4\" blur). Requires very bright lighting (15,000+ lumens). Will be dark without proper lighting."
+        }
+        binding.shutterModeDescription.text = description
     }
 
     private fun setupRecordingsList() {
