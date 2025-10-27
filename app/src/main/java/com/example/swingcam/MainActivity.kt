@@ -23,7 +23,7 @@ import androidx.lifecycle.lifecycleScope
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
-import com.example.swingcam.camera.CameraManager
+import com.example.swingcam.camera.Camera2Manager
 import com.example.swingcam.data.Config
 import com.example.swingcam.data.RecordingMetadata
 import com.example.swingcam.data.RecordingRepository
@@ -37,7 +37,7 @@ import java.io.File
 class MainActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityMainBinding
-    private lateinit var cameraManager: CameraManager
+    private lateinit var cameraManager: Camera2Manager
     private lateinit var repository: RecordingRepository
     private var config: Config = Config()
     private var player: ExoPlayer? = null
@@ -157,7 +157,7 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
-        cameraManager = CameraManager(this, this, binding.cameraPreview)
+        cameraManager = Camera2Manager(this, binding.cameraPreview)
 
         cameraManager.onExtractionComplete = { outputFile ->
             // Called when background extraction finishes

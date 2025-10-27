@@ -94,11 +94,10 @@ class CameraManager(
             val cameraProvider = cameraProviderFuture.get()
             Log.d(TAG, "Got camera provider")
 
-            // Prioritize FHD (1080p) for higher FPS (240fps on Pixel 9)
-            // FHD supports up to 240fps slow-motion on Pixel 9
-            // UHD/HIGHEST typically limited to 30-60fps
+            // Try HD first to see if it exposes higher FPS (240fps)
+            // Testing: HD may have better high-speed support than FHD
             val qualitySelector = QualitySelector.fromOrderedList(
-                listOf(Quality.FHD, Quality.HD, Quality.UHD)
+                listOf(Quality.HD, Quality.FHD, Quality.UHD)
             )
 
             val recorder = Recorder.Builder()
