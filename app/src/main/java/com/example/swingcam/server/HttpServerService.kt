@@ -57,10 +57,10 @@ class HttpServerService : Service() {
         fun updateShotMetadata(filename: String, clubData: com.example.swingcam.data.ClubData? = null): Boolean
 
         // Sound Trigger API
-        fun startSoundTrigger(threshold: Double?, debounceMs: Long?, enableFrequencyFiltering: Boolean?, highFreqThreshold: Double?): Map<String, Any>
+        fun startSoundTrigger(threshold: Double?, debounceMs: Long?, enableFrequencyFiltering: Boolean?, highFreqThreshold: Double?, continuous: Boolean?): Map<String, Any>
         fun stopSoundTrigger(): Map<String, Any>
         fun getSoundTriggerStatus(): Map<String, Any>
-        fun updateSoundTriggerConfig(threshold: Double?, debounceMs: Long?, enableFrequencyFiltering: Boolean?, highFreqThreshold: Double?): Map<String, Any>
+        fun updateSoundTriggerConfig(threshold: Double?, debounceMs: Long?, enableFrequencyFiltering: Boolean?, highFreqThreshold: Double?, continuous: Boolean?): Map<String, Any>
         fun getCurrentAudioLevel(): Double
     }
 
@@ -420,8 +420,9 @@ class HttpServerService : Service() {
                                     val debounceMs = (params["debounce_ms"] as? Number)?.toLong()
                                     val enableFrequencyFiltering = params["frequency_filtering"] as? Boolean
                                     val highFreqThreshold = (params["high_freq_threshold"] as? Number)?.toDouble()
+                                    val continuous = params["continuous"] as? Boolean
 
-                                    val result = callback.startSoundTrigger(threshold, debounceMs, enableFrequencyFiltering, highFreqThreshold)
+                                    val result = callback.startSoundTrigger(threshold, debounceMs, enableFrequencyFiltering, highFreqThreshold, continuous)
                                     Log.i(TAG, "API: sound trigger start result: ${result["status"]}")
                                     call.respond(result)
                                 } catch (e: Exception) {
@@ -479,8 +480,9 @@ class HttpServerService : Service() {
                                     val debounceMs = (params["debounce_ms"] as? Number)?.toLong()
                                     val enableFrequencyFiltering = params["frequency_filtering"] as? Boolean
                                     val highFreqThreshold = (params["high_freq_threshold"] as? Number)?.toDouble()
+                                    val continuous = params["continuous"] as? Boolean
 
-                                    val result = callback.updateSoundTriggerConfig(threshold, debounceMs, enableFrequencyFiltering, highFreqThreshold)
+                                    val result = callback.updateSoundTriggerConfig(threshold, debounceMs, enableFrequencyFiltering, highFreqThreshold, continuous)
                                     call.respond(result)
                                 } catch (e: Exception) {
                                     Log.e(TAG, "Sound trigger config update failed", e)

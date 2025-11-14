@@ -49,6 +49,7 @@ class SoundTriggerManager(
         val rearmDelayMs: Long = 1000,          // Delay before rearming (1 second)
         val enableFrequencyFiltering: Boolean = true,  // Enable frequency analysis to filter voice
         val highFreqThreshold: Double = 0.6,    // High-freq energy ratio threshold
+        val continuous: Boolean = true,         // Auto-rearm after each shot (false = one-shot mode)
         val enableLogging: Boolean = true
     )
 
@@ -110,7 +111,8 @@ class SoundTriggerManager(
 
         if (config.enableLogging) {
             val filterInfo = if (config.enableFrequencyFiltering) " with frequency filtering" else ""
-            Log.i(TAG, "Sound trigger mode started with threshold: ${config.soundThreshold}$filterInfo")
+            val modeInfo = if (config.continuous) " (continuous mode)" else " (one-shot mode)"
+            Log.i(TAG, "Sound trigger mode started with threshold: ${config.soundThreshold}$filterInfo$modeInfo")
         }
 
         return mapOf(
@@ -119,7 +121,8 @@ class SoundTriggerManager(
                 "threshold" to config.soundThreshold,
                 "debounce_ms" to config.debounceMs,
                 "frequency_filtering" to config.enableFrequencyFiltering,
-                "high_freq_threshold" to config.highFreqThreshold
+                "high_freq_threshold" to config.highFreqThreshold,
+                "continuous" to config.continuous
             )
         )
     }
@@ -186,7 +189,8 @@ class SoundTriggerManager(
                 "debounce_ms" to config.debounceMs,
                 "post_shot_delay_ms" to config.postShotDelayMs,
                 "frequency_filtering" to config.enableFrequencyFiltering,
-                "high_freq_threshold" to config.highFreqThreshold
+                "high_freq_threshold" to config.highFreqThreshold,
+                "continuous" to config.continuous
             )
         )
     }
@@ -210,7 +214,8 @@ class SoundTriggerManager(
                 "threshold" to config.soundThreshold,
                 "debounce_ms" to config.debounceMs,
                 "frequency_filtering" to config.enableFrequencyFiltering,
-                "high_freq_threshold" to config.highFreqThreshold
+                "high_freq_threshold" to config.highFreqThreshold,
+                "continuous" to config.continuous
             )
         )
     }
@@ -280,12 +285,20 @@ class SoundTriggerManager(
                 // Wait before rearming to allow extraction to start
                 delay(config.rearmDelayMs)
 
-                // Auto-rearm for next shot (only if still active)
-                if (state == SoundTriggerState.PROCESSING) {
+                // Auto-rearm for next shot (only if continuous mode enabled and still active)
+                if (config.continuous && state == SoundTriggerState.PROCESSING) {
                     if (config.enableLogging) {
-                        Log.d(TAG, "Rearming for next shot...")
+                        Log.d(TAG, "Rearming for next shot (continuous mode)...")
                     }
                     armCamera()
+                } else if (!config.continuous) {
+                    // One-shot mode: stop after capturing one swing
+                    if (config.enableLogging) {
+                        Log.i(TAG, "One-shot mode: stopping after capturing swing")
+                    }
+                    soundDetector?.stop()
+                    soundDetector = null
+                    setState(SoundTriggerState.IDLE)
                 }
 
             } catch (e: Exception) {

@@ -52,6 +52,7 @@ High-level orchestrator that:
 - `rearmDelayMs`: Delay before rearming (default: 1000ms)
 - `enableFrequencyFiltering`: Enable frequency analysis to filter voice (default: true)
 - `highFreqThreshold`: High-frequency ratio threshold (default: 0.6)
+- `continuous`: Auto-rearm after each shot (default: true for practice sessions, false for one-shot mode)
 
 ### 3. Integration Points
 
@@ -76,7 +77,8 @@ Content-Type: application/json
   "threshold": 0.3,                  // Optional, amplitude 0.0-1.0 (default: 0.3)
   "debounce_ms": 2000,               // Optional, milliseconds (default: 2000)
   "frequency_filtering": true,       // Optional, enable voice filtering (default: true)
-  "high_freq_threshold": 0.6         // Optional, high-freq ratio 0.0-1.0 (default: 0.6)
+  "high_freq_threshold": 0.6,        // Optional, high-freq ratio 0.0-1.0 (default: 0.6)
+  "continuous": true                 // Optional, auto-rearm after each shot (default: true)
 }
 ```
 
@@ -88,7 +90,8 @@ Content-Type: application/json
     "threshold": 0.3,
     "debounce_ms": 2000,
     "frequency_filtering": true,
-    "high_freq_threshold": 0.6
+    "high_freq_threshold": 0.6,
+    "continuous": true
   }
 }
 ```
@@ -127,7 +130,8 @@ GET /api/sound/status
     "debounce_ms": 2000,
     "post_shot_delay_ms": 500,
     "frequency_filtering": true,
-    "high_freq_threshold": 0.6
+    "high_freq_threshold": 0.6,
+    "continuous": true
   }
 }
 ```
@@ -142,7 +146,8 @@ Content-Type: application/json
   "threshold": 0.4,
   "debounce_ms": 3000,
   "frequency_filtering": false,      // Disable voice filtering
-  "high_freq_threshold": 0.7
+  "high_freq_threshold": 0.7,
+  "continuous": false                // One-shot mode
 }
 ```
 
@@ -154,7 +159,8 @@ Content-Type: application/json
     "threshold": 0.4,
     "debounce_ms": 3000,
     "frequency_filtering": false,
-    "high_freq_threshold": 0.7
+    "high_freq_threshold": 0.7,
+    "continuous": false
   }
 }
 ```
@@ -175,6 +181,77 @@ GET /api/sound/level
 ```
 
 Useful for calibration - shows current microphone input level (0.0-1.0).
+
+## Recording Modes: Continuous vs One-Shot
+
+The sound detection system supports two distinct modes to fit different use cases:
+
+### Continuous Mode (`continuous: true`, default)
+
+**Use Case:** Practice sessions, driving range, simulator rounds
+
+**Behavior:**
+- Detects first shot → records → auto-rearms
+- Detects second shot → records → auto-rearms
+- Continues indefinitely until manually stopped
+- Perfect for hands-free practice sessions
+
+**Example:**
+```bash
+# Start continuous mode (default)
+curl -X POST http://10.0.0.147:8080/api/sound/start
+
+# Or explicitly set continuous mode
+curl -X POST http://10.0.0.147:8080/api/sound/start \
+  -H "Content-Type: application/json" \
+  -d '{"continuous": true}'
+
+# Hit as many balls as you want - all captured automatically
+# ...
+
+# Stop when done
+curl -X POST http://10.0.0.147:8080/api/sound/stop
+```
+
+### One-Shot Mode (`continuous: false`)
+
+**Use Case:** Quick captures of friends' swings, single-shot captures
+
+**Behavior:**
+- Detects shot → records → **stops automatically**
+- No rearming - becomes IDLE after one capture
+- Perfect for "pull out phone, capture, put away" workflow
+
+**Example:**
+```bash
+# Friend is about to hit a shot
+# Pull out phone and start one-shot mode
+curl -X POST http://10.0.0.147:8080/api/sound/start \
+  -H "Content-Type: application/json" \
+  -d '{"continuous": false}'
+
+# They hit the ball - automatically captured!
+# System stops after this one shot
+
+# Put phone back in pocket - done!
+```
+
+### Switching Modes
+
+You can only change modes when the system is IDLE:
+
+```bash
+# Stop current mode
+curl -X POST http://10.0.0.147:8080/api/sound/stop
+
+# Update config to one-shot mode
+curl -X PATCH http://10.0.0.147:8080/api/sound/config \
+  -H "Content-Type: application/json" \
+  -d '{"continuous": false}'
+
+# Restart with new mode
+curl -X POST http://10.0.0.147:8080/api/sound/start
+```
 
 ## Frequency Filtering (Voice Rejection)
 

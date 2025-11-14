@@ -580,14 +580,15 @@ class MainActivity : AppCompatActivity() {
             }
 
             // Sound Trigger API implementations
-            override fun startSoundTrigger(threshold: Double?, debounceMs: Long?, enableFrequencyFiltering: Boolean?, highFreqThreshold: Double?): Map<String, Any> {
+            override fun startSoundTrigger(threshold: Double?, debounceMs: Long?, enableFrequencyFiltering: Boolean?, highFreqThreshold: Double?, continuous: Boolean?): Map<String, Any> {
                 val config = SoundTriggerManager.Config(
                     soundThreshold = threshold ?: 0.3,
                     debounceMs = debounceMs ?: 2000,
                     postShotDelayMs = this@MainActivity.config.postShotDelay,
                     rearmDelayMs = 1000,
                     enableFrequencyFiltering = enableFrequencyFiltering ?: true,  // Default: enabled
-                    highFreqThreshold = highFreqThreshold ?: 0.6
+                    highFreqThreshold = highFreqThreshold ?: 0.6,
+                    continuous = continuous ?: true  // Default: continuous mode
                 )
                 return soundTriggerManager.start(config)
             }
@@ -600,12 +601,13 @@ class MainActivity : AppCompatActivity() {
                 return soundTriggerManager.getStatus()
             }
 
-            override fun updateSoundTriggerConfig(threshold: Double?, debounceMs: Long?, enableFrequencyFiltering: Boolean?, highFreqThreshold: Double?): Map<String, Any> {
+            override fun updateSoundTriggerConfig(threshold: Double?, debounceMs: Long?, enableFrequencyFiltering: Boolean?, highFreqThreshold: Double?, continuous: Boolean?): Map<String, Any> {
                 val config = SoundTriggerManager.Config(
                     soundThreshold = threshold ?: 0.3,
                     debounceMs = debounceMs ?: 2000,
                     enableFrequencyFiltering = enableFrequencyFiltering ?: true,
-                    highFreqThreshold = highFreqThreshold ?: 0.6
+                    highFreqThreshold = highFreqThreshold ?: 0.6,
+                    continuous = continuous ?: true
                 )
                 return soundTriggerManager.updateConfig(config)
             }
