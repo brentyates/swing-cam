@@ -55,6 +55,13 @@ class HttpServerService : Service() {
         fun cancelLaunchMonitor(): Map<String, Any>
         fun getLMStatus(): Map<String, Any>
         fun updateShotMetadata(filename: String, clubData: com.example.swingcam.data.ClubData? = null): Boolean
+
+        // Sound Trigger API
+        fun startSoundTrigger(threshold: Double?, debounceMs: Long?): Map<String, Any>
+        fun stopSoundTrigger(): Map<String, Any>
+        fun getSoundTriggerStatus(): Map<String, Any>
+        fun updateSoundTriggerConfig(threshold: Double?, debounceMs: Long?): Map<String, Any>
+        fun getCurrentAudioLevel(): Double
     }
 
     inner class LocalBinder : Binder() {
@@ -393,6 +400,103 @@ class HttpServerService : Service() {
                                 Log.e(TAG, "Error updating metadata", e)
                                 call.respond(HttpStatusCode.InternalServerError,
                                     mapOf("error" to "Failed to update metadata"))
+                            }
+                        }
+
+                        // Sound Trigger API endpoints
+                        post("/api/sound/start") {
+                            Log.i(TAG, "API: POST /api/sound/start")
+                            val callback = serverCallback
+                            if (callback != null) {
+                                try {
+                                    // Parse optional config from request body
+                                    val params = try {
+                                        call.receive<Map<String, Any>>()
+                                    } catch (e: Exception) {
+                                        emptyMap()
+                                    }
+
+                                    val threshold = (params["threshold"] as? Number)?.toDouble()
+                                    val debounceMs = (params["debounce_ms"] as? Number)?.toLong()
+
+                                    val result = callback.startSoundTrigger(threshold, debounceMs)
+                                    Log.i(TAG, "API: sound trigger start result: ${result["status"]}")
+                                    call.respond(result)
+                                } catch (e: Exception) {
+                                    Log.e(TAG, "Sound trigger start failed", e)
+                                    call.respond(HttpStatusCode.InternalServerError,
+                                        mapOf("status" to "error", "message" to e.message))
+                                }
+                            } else {
+                                call.respond(HttpStatusCode.ServiceUnavailable,
+                                    mapOf("status" to "error", "message" to "Service not ready"))
+                            }
+                        }
+
+                        post("/api/sound/stop") {
+                            Log.i(TAG, "API: POST /api/sound/stop")
+                            val callback = serverCallback
+                            if (callback != null) {
+                                try {
+                                    val result = callback.stopSoundTrigger()
+                                    Log.i(TAG, "API: sound trigger stop result: ${result["status"]}")
+                                    call.respond(result)
+                                } catch (e: Exception) {
+                                    Log.e(TAG, "Sound trigger stop failed", e)
+                                    call.respond(HttpStatusCode.InternalServerError,
+                                        mapOf("status" to "error", "message" to e.message))
+                                }
+                            } else {
+                                call.respond(HttpStatusCode.ServiceUnavailable,
+                                    mapOf("status" to "error", "message" to "Service not ready"))
+                            }
+                        }
+
+                        get("/api/sound/status") {
+                            val callback = serverCallback
+                            if (callback != null) {
+                                call.respond(callback.getSoundTriggerStatus())
+                            } else {
+                                call.respond(HttpStatusCode.ServiceUnavailable,
+                                    mapOf("status" to "error", "message" to "Service not ready"))
+                            }
+                        }
+
+                        patch("/api/sound/config") {
+                            Log.i(TAG, "API: PATCH /api/sound/config")
+                            val callback = serverCallback
+                            if (callback != null) {
+                                try {
+                                    val params = try {
+                                        call.receive<Map<String, Any>>()
+                                    } catch (e: Exception) {
+                                        emptyMap()
+                                    }
+
+                                    val threshold = (params["threshold"] as? Number)?.toDouble()
+                                    val debounceMs = (params["debounce_ms"] as? Number)?.toLong()
+
+                                    val result = callback.updateSoundTriggerConfig(threshold, debounceMs)
+                                    call.respond(result)
+                                } catch (e: Exception) {
+                                    Log.e(TAG, "Sound trigger config update failed", e)
+                                    call.respond(HttpStatusCode.InternalServerError,
+                                        mapOf("status" to "error", "message" to e.message))
+                                }
+                            } else {
+                                call.respond(HttpStatusCode.ServiceUnavailable,
+                                    mapOf("status" to "error", "message" to "Service not ready"))
+                            }
+                        }
+
+                        get("/api/sound/level") {
+                            val callback = serverCallback
+                            if (callback != null) {
+                                val level = callback.getCurrentAudioLevel()
+                                call.respond(mapOf("level" to level))
+                            } else {
+                                call.respond(HttpStatusCode.ServiceUnavailable,
+                                    mapOf("error" to "Service not ready"))
                             }
                         }
                     }

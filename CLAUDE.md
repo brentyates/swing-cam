@@ -18,6 +18,7 @@ Project documentation is organized as follows:
   - **[USAGE.md](docs/USAGE.md)** - Detailed API documentation and examples
   - **[ARCHITECTURE.md](docs/ARCHITECTURE.md)** - Project structure and design decisions
   - **[WEB_INTERFACE_PLAN.md](docs/WEB_INTERFACE_PLAN.md)** - Implementation plan for web interface feature
+  - **[SOUND_DETECTION.md](docs/SOUND_DETECTION.md)** - Sound-triggered recording mode documentation
 
 ## Tech Stack
 
@@ -128,6 +129,19 @@ adb shell run-as com.example.swingcam ls files/recordings
    - Real-time polling for new recordings (2.5s interval)
    - Live camera preview (toggle on/off)
 
+7. **SoundDetector.kt** (audio/) - Low-level audio monitoring
+   - Uses Android AudioRecord API to capture microphone input
+   - Calculates RMS amplitude to detect sound spikes
+   - Configurable threshold and debounce timing
+   - Completely independent and reusable component
+
+8. **SoundTriggerManager.kt** (audio/) - Sound-based recording orchestrator
+   - State machine: IDLE → LISTENING → PROCESSING → LISTENING
+   - Coordinates SoundDetector with CameraManager launch monitor API
+   - Auto-rearms after each shot for continuous operation
+   - Tracks statistics (shots detected, duration, etc.)
+   - Cleanly separated from core camera logic
+
 ### Data Models
 
 **Config.kt**
@@ -193,6 +207,13 @@ data class ClubData(
 
 **Shot Metadata:**
 - `PATCH /api/recordings/{filename}/metadata` - Update shot metadata (typically club data sent after ball data)
+
+**Sound Trigger Mode:**
+- `POST /api/sound/start` - Start sound-triggered recording mode (auto-rearms after each shot)
+- `POST /api/sound/stop` - Stop sound-triggered recording mode
+- `GET /api/sound/status` - Get sound trigger status and statistics
+- `PATCH /api/sound/config` - Update sound detection configuration
+- `GET /api/sound/level` - Get current audio level (for calibration)
 
 **Web Interface:**
 - `GET /` - Serve web interface (index.html)
@@ -565,6 +586,18 @@ Manual testing checklist:
   - Displayed in web interface with detailed grid layout
   - Web interface auto-updates when club data arrives (no refresh needed)
   - Complete API documentation in [USAGE.md](docs/USAGE.md)
+
+- **Sound-Triggered Recording Mode** (November 2025) - Automatic swing recording triggered by sound detection
+  - Detects loud sounds (golf ball strikes) using microphone input
+  - Auto-rearms after each shot for continuous hands-free operation
+  - Completely separate architecture - no pollution of core camera logic
+  - Internally uses existing launch monitor API (clean reuse)
+  - Configurable threshold, debounce timing, and post-shot delay
+  - REST API endpoints for remote control: /api/sound/*
+  - Real-time status and statistics tracking
+  - Audio level endpoint for threshold calibration
+  - Two-component design: SoundDetector (low-level) + SoundTriggerManager (orchestrator)
+  - Complete documentation in [SOUND_DETECTION.md](docs/SOUND_DETECTION.md)
 
 ## Future Enhancements
 

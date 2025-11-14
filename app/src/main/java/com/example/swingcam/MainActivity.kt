@@ -23,6 +23,7 @@ import androidx.lifecycle.lifecycleScope
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
+import com.example.swingcam.audio.SoundTriggerManager
 import com.example.swingcam.camera.CameraManager
 import com.example.swingcam.data.Config
 import com.example.swingcam.data.RecordingMetadata
@@ -39,6 +40,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var binding: ActivityMainBinding
     private lateinit var cameraManager: CameraManager
     private lateinit var repository: RecordingRepository
+    private lateinit var soundTriggerManager: SoundTriggerManager
     private var config: Config = Config()
     private var player: ExoPlayer? = null
     private var isShowingReplay = false
@@ -158,6 +160,24 @@ class MainActivity : AppCompatActivity() {
         }
 
         cameraManager = CameraManager(this, this, binding.cameraPreview)
+
+        // Initialize sound trigger manager
+        soundTriggerManager = SoundTriggerManager(cameraManager, repository.recordingsDir, config)
+        soundTriggerManager.onStateChanged = { state ->
+            runOnUiThread {
+                updateSoundTriggerUI(state)
+            }
+        }
+        soundTriggerManager.onShotDetected = { shotNumber ->
+            runOnUiThread {
+                Toast.makeText(this, "Shot #$shotNumber detected!", Toast.LENGTH_SHORT).show()
+            }
+        }
+        soundTriggerManager.onError = { error ->
+            runOnUiThread {
+                Toast.makeText(this, "Sound trigger error: $error", Toast.LENGTH_SHORT).show()
+            }
+        }
 
         cameraManager.onExtractionComplete = { outputFile ->
             // Called when background extraction finishes
@@ -558,6 +578,37 @@ class MainActivity : AppCompatActivity() {
                     false
                 }
             }
+
+            // Sound Trigger API implementations
+            override fun startSoundTrigger(threshold: Double?, debounceMs: Long?): Map<String, Any> {
+                val config = SoundTriggerManager.Config(
+                    soundThreshold = threshold ?: 0.3,
+                    debounceMs = debounceMs ?: 2000,
+                    postShotDelayMs = this@MainActivity.config.postShotDelay,
+                    rearmDelayMs = 1000
+                )
+                return soundTriggerManager.start(config)
+            }
+
+            override fun stopSoundTrigger(): Map<String, Any> {
+                return soundTriggerManager.stop()
+            }
+
+            override fun getSoundTriggerStatus(): Map<String, Any> {
+                return soundTriggerManager.getStatus()
+            }
+
+            override fun updateSoundTriggerConfig(threshold: Double?, debounceMs: Long?): Map<String, Any> {
+                val config = SoundTriggerManager.Config(
+                    soundThreshold = threshold ?: 0.3,
+                    debounceMs = debounceMs ?: 2000
+                )
+                return soundTriggerManager.updateConfig(config)
+            }
+
+            override fun getCurrentAudioLevel(): Double {
+                return soundTriggerManager.getCurrentAudioLevel()
+            }
         }
     }
 
@@ -598,6 +649,25 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private fun updateSoundTriggerUI(state: com.example.swingcam.audio.SoundTriggerState) {
+        // Update UI based on sound trigger state
+        // For now, just log the state change
+        // TODO: Add visual indicators (LED, icon, etc.) in the UI
+        Log.d(TAG, "Sound trigger state changed to: $state")
+
+        // Update status text if sound mode is active
+        if (state != com.example.swingcam.audio.SoundTriggerState.IDLE) {
+            val stateText = when (state) {
+                com.example.swingcam.audio.SoundTriggerState.LISTENING -> "🎤 Listening..."
+                com.example.swingcam.audio.SoundTriggerState.PROCESSING -> "🎬 Processing..."
+                else -> ""
+            }
+            binding.statusText.text = stateText
+        } else {
+            binding.statusText.text = getString(R.string.ready)
+        }
+    }
+
     override fun onDestroy() {
         super.onDestroy()
         player?.release()
@@ -607,6 +677,9 @@ class MainActivity : AppCompatActivity() {
         }
         if (::cameraManager.isInitialized) {
             cameraManager.cleanup()
+        }
+        if (::soundTriggerManager.isInitialized) {
+            soundTriggerManager.cleanup()
         }
     }
 
