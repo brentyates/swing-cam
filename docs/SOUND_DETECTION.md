@@ -4,6 +4,8 @@
 
 The sound detection mode enables automatic swing recording triggered by loud sounds (e.g., golf ball strikes) instead of manual API calls. This provides a hands-free experience where the camera continuously monitors for shots and automatically records them.
 
+**Key Feature:** Advanced frequency analysis filters out voice and other low-frequency sounds, detecting only sharp impact sounds like ball strikes.
+
 ## Architecture
 
 The sound detection system is cleanly separated from the core camera architecture and consists of three main components:
@@ -13,6 +15,10 @@ The sound detection system is cleanly separated from the core camera architectur
 Low-level audio monitoring component that:
 - Uses Android AudioRecord API to capture microphone input
 - Analyzes audio amplitude using RMS (Root Mean Square) calculation
+- **Advanced frequency analysis** to distinguish impacts from voice:
+  - Zero-crossing rate (ZCR) - impacts have high ZCR, voice has low ZCR
+  - Transient sharpness - impacts have sharp attack, voice is gradual
+  - High-frequency energy - impacts are rich in 2-10 kHz, voice is 85-4000 Hz
 - Detects sound spikes above a configurable threshold
 - Implements debouncing to prevent duplicate detections
 - Completely independent and reusable
@@ -22,6 +28,8 @@ Low-level audio monitoring component that:
 - `threshold`: Amplitude threshold 0.0-1.0 (default: 0.3)
 - `debounceMs`: Minimum time between detections (default: 500ms)
 - `windowSizeMs`: Analysis window size (default: 50ms)
+- `enableFrequencyFiltering`: Enable frequency analysis (default: true)
+- `highFreqThreshold`: High-frequency ratio threshold 0.0-1.0 (default: 0.6)
 
 ### 2. SoundTriggerManager (`audio/SoundTriggerManager.kt`)
 
@@ -42,6 +50,8 @@ High-level orchestrator that:
 - `debounceMs`: Minimum time between shots (default: 2000ms)
 - `postShotDelayMs`: Delay after sound to capture follow-through (default: 500ms)
 - `rearmDelayMs`: Delay before rearming (default: 1000ms)
+- `enableFrequencyFiltering`: Enable frequency analysis to filter voice (default: true)
+- `highFreqThreshold`: High-frequency ratio threshold (default: 0.6)
 
 ### 3. Integration Points
 
@@ -63,8 +73,10 @@ POST /api/sound/start
 Content-Type: application/json
 
 {
-  "threshold": 0.3,        // Optional, 0.0-1.0
-  "debounce_ms": 2000      // Optional, milliseconds
+  "threshold": 0.3,                  // Optional, amplitude 0.0-1.0 (default: 0.3)
+  "debounce_ms": 2000,               // Optional, milliseconds (default: 2000)
+  "frequency_filtering": true,       // Optional, enable voice filtering (default: true)
+  "high_freq_threshold": 0.6         // Optional, high-freq ratio 0.0-1.0 (default: 0.6)
 }
 ```
 
@@ -74,7 +86,9 @@ Content-Type: application/json
   "status": "started",
   "config": {
     "threshold": 0.3,
-    "debounce_ms": 2000
+    "debounce_ms": 2000,
+    "frequency_filtering": true,
+    "high_freq_threshold": 0.6
   }
 }
 ```
@@ -111,7 +125,9 @@ GET /api/sound/status
   "config": {
     "threshold": 0.3,
     "debounce_ms": 2000,
-    "post_shot_delay_ms": 500
+    "post_shot_delay_ms": 500,
+    "frequency_filtering": true,
+    "high_freq_threshold": 0.6
   }
 }
 ```
@@ -124,7 +140,9 @@ Content-Type: application/json
 
 {
   "threshold": 0.4,
-  "debounce_ms": 3000
+  "debounce_ms": 3000,
+  "frequency_filtering": false,      // Disable voice filtering
+  "high_freq_threshold": 0.7
 }
 ```
 
@@ -134,7 +152,9 @@ Content-Type: application/json
   "status": "updated",
   "config": {
     "threshold": 0.4,
-    "debounce_ms": 3000
+    "debounce_ms": 3000,
+    "frequency_filtering": false,
+    "high_freq_threshold": 0.7
   }
 }
 ```
@@ -155,6 +175,75 @@ GET /api/sound/level
 ```
 
 Useful for calibration - shows current microphone input level (0.0-1.0).
+
+## Frequency Filtering (Voice Rejection)
+
+The sound detector uses advanced frequency analysis to distinguish golf ball impacts from voice and other low-frequency sounds. This is **enabled by default** (`frequency_filtering: true`).
+
+### How It Works
+
+When a loud sound is detected (amplitude > threshold), the system analyzes three characteristics:
+
+**1. Zero-Crossing Rate (ZCR)**
+- **Ball strikes**: High ZCR (0.3-0.6) due to rapid signal oscillations
+- **Voice**: Low ZCR (0.05-0.15) due to slower frequency changes
+
+**2. Transient Sharpness**
+- **Ball strikes**: Sharp attack with maximum derivative > 10,000
+- **Voice**: Gradual changes with maximum derivative < 5,000
+
+**3. High-Frequency Energy Ratio**
+- **Ball strikes**: High energy in 2-10 kHz range (impact sounds are "crisp")
+- **Voice**: Energy concentrated in 85-4000 Hz (fundamental + harmonics)
+
+These three metrics are combined into a score (0.0-1.0):
+```
+score = (ZCR × 0.3) + (Sharpness × 0.3) + (High-Freq Ratio × 0.4)
+```
+
+Only sounds with `score > high_freq_threshold` trigger recording.
+
+### When to Disable
+
+You may want to disable frequency filtering (`frequency_filtering: false`) if:
+- You're in a completely silent environment with no voice/ambient noise
+- The filtering is too aggressive and missing soft strikes
+- You want maximum sensitivity regardless of sound type
+
+### Tuning
+
+If frequency filtering is rejecting too many valid strikes:
+1. Lower `high_freq_threshold` from 0.6 to 0.4-0.5
+2. Check logs to see the high-freq score of rejected sounds
+3. Adjust threshold based on observed values
+
+If it's still detecting voice:
+1. Raise `high_freq_threshold` from 0.6 to 0.7-0.8
+2. Increase `threshold` (amplitude) as well
+3. Position phone closer to impact point, farther from people
+
+### Examples
+
+**Disable filtering (maximum sensitivity):**
+```bash
+curl -X POST http://10.0.0.147:8080/api/sound/start \
+  -H "Content-Type: application/json" \
+  -d '{"frequency_filtering": false}'
+```
+
+**Lower filter threshold (less strict):**
+```bash
+curl -X POST http://10.0.0.147:8080/api/sound/start \
+  -H "Content-Type: application/json" \
+  -d '{"high_freq_threshold": 0.4}'
+```
+
+**Higher filter threshold (more strict, reject more sounds):**
+```bash
+curl -X POST http://10.0.0.147:8080/api/sound/start \
+  -H "Content-Type: application/json" \
+  -d '{"high_freq_threshold": 0.8}'
+```
 
 ## Usage Examples
 

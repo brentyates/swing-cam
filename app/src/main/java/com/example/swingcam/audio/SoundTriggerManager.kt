@@ -47,6 +47,8 @@ class SoundTriggerManager(
         val debounceMs: Long = 2000,            // Min time between shots (2 seconds)
         val postShotDelayMs: Int = 500,         // Delay after sound before stopping
         val rearmDelayMs: Long = 1000,          // Delay before rearming (1 second)
+        val enableFrequencyFiltering: Boolean = true,  // Enable frequency analysis to filter voice
+        val highFreqThreshold: Double = 0.6,    // High-freq energy ratio threshold
         val enableLogging: Boolean = true
     )
 
@@ -87,6 +89,8 @@ class SoundTriggerManager(
         val soundConfig = SoundDetector.Config(
             threshold = config.soundThreshold,
             debounceMs = config.debounceMs,
+            enableFrequencyFiltering = config.enableFrequencyFiltering,
+            highFreqThreshold = config.highFreqThreshold,
             enableLogging = config.enableLogging
         )
 
@@ -105,14 +109,17 @@ class SoundTriggerManager(
         }
 
         if (config.enableLogging) {
-            Log.i(TAG, "Sound trigger mode started with threshold: ${config.soundThreshold}")
+            val filterInfo = if (config.enableFrequencyFiltering) " with frequency filtering" else ""
+            Log.i(TAG, "Sound trigger mode started with threshold: ${config.soundThreshold}$filterInfo")
         }
 
         return mapOf(
             "status" to "started",
             "config" to mapOf(
                 "threshold" to config.soundThreshold,
-                "debounce_ms" to config.debounceMs
+                "debounce_ms" to config.debounceMs,
+                "frequency_filtering" to config.enableFrequencyFiltering,
+                "high_freq_threshold" to config.highFreqThreshold
             )
         )
     }
@@ -177,7 +184,9 @@ class SoundTriggerManager(
             "config" to mapOf(
                 "threshold" to config.soundThreshold,
                 "debounce_ms" to config.debounceMs,
-                "post_shot_delay_ms" to config.postShotDelayMs
+                "post_shot_delay_ms" to config.postShotDelayMs,
+                "frequency_filtering" to config.enableFrequencyFiltering,
+                "high_freq_threshold" to config.highFreqThreshold
             )
         )
     }
@@ -199,7 +208,9 @@ class SoundTriggerManager(
             "status" to "updated",
             "config" to mapOf(
                 "threshold" to config.soundThreshold,
-                "debounce_ms" to config.debounceMs
+                "debounce_ms" to config.debounceMs,
+                "frequency_filtering" to config.enableFrequencyFiltering,
+                "high_freq_threshold" to config.highFreqThreshold
             )
         )
     }
