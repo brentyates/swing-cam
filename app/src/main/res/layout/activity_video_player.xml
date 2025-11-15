@@ -1,0 +1,350 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#000000">
+
+    <!-- Video Player Container -->
+    <FrameLayout
+        android:id="@+id/videoContainer"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintBottom_toTopOf="@+id/controlsContainer"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
+
+        <!-- ExoPlayer View -->
+        <androidx.media3.ui.PlayerView
+            android:id="@+id/playerView"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            app:show_buffering="when_playing"
+            app:use_controller="false" />
+
+        <!-- Ball Tracker Overlay -->
+        <com.example.swingcam.ui.BallTrackerOverlayView
+            android:id="@+id/ballTrackerOverlay"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:visibility="gone" />
+
+        <!-- Drawing Overlay -->
+        <com.example.swingcam.ui.DrawingOverlayView
+            android:id="@+id/drawingOverlay"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent" />
+
+    </FrameLayout>
+
+    <!-- Controls Container -->
+    <LinearLayout
+        android:id="@+id/controlsContainer"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:background="#222222"
+        android:padding="8dp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
+
+        <!-- Playback Controls Row -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:layout_marginBottom="8dp">
+
+            <Button
+                android:id="@+id/playPauseButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Play"
+                android:textSize="12sp"
+                android:padding="8dp" />
+
+            <TextView
+                android:id="@+id/speedText"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="1.0x"
+                android:textColor="#FFFFFF"
+                android:textSize="14sp"
+                android:layout_marginStart="8dp"
+                android:layout_marginEnd="4dp" />
+
+            <Button
+                android:id="@+id/speedDownButton"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:text="-"
+                android:textSize="16sp"
+                android:padding="4dp" />
+
+            <Button
+                android:id="@+id/speedUpButton"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:text="+"
+                android:textSize="16sp"
+                android:padding="4dp"
+                android:layout_marginEnd="8dp" />
+
+            <Button
+                android:id="@+id/frameBackButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="◀◀"
+                android:textSize="12sp"
+                android:padding="8dp" />
+
+            <Button
+                android:id="@+id/frameForwardButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="▶▶"
+                android:textSize="12sp"
+                android:padding="8dp" />
+
+            <Space
+                android:layout_width="0dp"
+                android:layout_height="1dp"
+                android:layout_weight="1" />
+
+            <Button
+                android:id="@+id/closeButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Close"
+                android:textSize="12sp"
+                android:padding="8dp" />
+
+        </LinearLayout>
+
+        <!-- Drawing Tools Row -->
+        <HorizontalScrollView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:scrollbars="none"
+            android:layout_marginBottom="8dp">
+
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal">
+
+                <Button
+                    android:id="@+id/toolNoneButton"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="None"
+                    android:textSize="11sp"
+                    android:padding="6dp"
+                    android:backgroundTint="#4CAF50" />
+
+                <Button
+                    android:id="@+id/toolLineButton"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Line"
+                    android:textSize="11sp"
+                    android:padding="6dp" />
+
+                <Button
+                    android:id="@+id/toolAngleButton"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Angle"
+                    android:textSize="11sp"
+                    android:padding="6dp" />
+
+                <Button
+                    android:id="@+id/toolCircleButton"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Circle"
+                    android:textSize="11sp"
+                    android:padding="6dp" />
+
+                <Button
+                    android:id="@+id/toolFreehandButton"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Freehand"
+                    android:textSize="11sp"
+                    android:padding="6dp" />
+
+                <Button
+                    android:id="@+id/toolArrowButton"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Arrow"
+                    android:textSize="11sp"
+                    android:padding="6dp" />
+
+                <Button
+                    android:id="@+id/undoButton"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Undo"
+                    android:textSize="11sp"
+                    android:padding="6dp" />
+
+                <Button
+                    android:id="@+id/redoButton"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Redo"
+                    android:textSize="11sp"
+                    android:padding="6dp" />
+
+                <Button
+                    android:id="@+id/clearButton"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Clear"
+                    android:textSize="11sp"
+                    android:padding="6dp"
+                    android:backgroundTint="#F44336" />
+
+                <Button
+                    android:id="@+id/saveFrameButton"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Save Frame"
+                    android:textSize="11sp"
+                    android:padding="6dp"
+                    android:backgroundTint="#2196F3" />
+
+            </LinearLayout>
+        </HorizontalScrollView>
+
+        <!-- Color and Thickness Row -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:layout_marginBottom="8dp">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Color:"
+                android:textColor="#FFFFFF"
+                android:textSize="12sp"
+                android:layout_marginEnd="8dp" />
+
+            <Button
+                android:id="@+id/colorRedButton"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:backgroundTint="#FF0000"
+                android:layout_marginEnd="4dp" />
+
+            <Button
+                android:id="@+id/colorYellowButton"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:backgroundTint="#FFFF00"
+                android:layout_marginEnd="4dp" />
+
+            <Button
+                android:id="@+id/colorGreenButton"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:backgroundTint="#00FF00"
+                android:layout_marginEnd="4dp" />
+
+            <Button
+                android:id="@+id/colorBlueButton"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:backgroundTint="#0000FF"
+                android:layout_marginEnd="4dp" />
+
+            <Button
+                android:id="@+id/colorWhiteButton"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:backgroundTint="#FFFFFF"
+                android:layout_marginEnd="16dp" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Width:"
+                android:textColor="#FFFFFF"
+                android:textSize="12sp"
+                android:layout_marginEnd="8dp" />
+
+            <TextView
+                android:id="@+id/widthText"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="5"
+                android:textColor="#FFFFFF"
+                android:textSize="12sp"
+                android:layout_marginEnd="4dp" />
+
+            <Button
+                android:id="@+id/widthDownButton"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:text="-"
+                android:textSize="14sp"
+                android:padding="4dp" />
+
+            <Button
+                android:id="@+id/widthUpButton"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:text="+"
+                android:textSize="14sp"
+                android:padding="4dp" />
+
+        </LinearLayout>
+
+        <!-- Ball Tracking Row -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
+
+            <Button
+                android:id="@+id/toggleBallTrackingButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Start Ball Tracking"
+                android:textSize="11sp"
+                android:padding="8dp"
+                android:backgroundTint="#FF9800" />
+
+            <Button
+                android:id="@+id/clearBallTrailButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Clear Trail"
+                android:textSize="11sp"
+                android:padding="8dp"
+                android:layout_marginStart="8dp" />
+
+            <TextView
+                android:id="@+id/trackingStatusText"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text=""
+                android:textColor="#FFFF00"
+                android:textSize="12sp"
+                android:layout_marginStart="16dp" />
+
+        </LinearLayout>
+
+    </LinearLayout>
+
+</androidx.constraintlayout.widget.ConstraintLayout>

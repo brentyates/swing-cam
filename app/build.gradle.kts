@@ -78,6 +78,10 @@ dependencies {
     implementation("androidx.media3:media3-exoplayer:1.2.1")
     implementation("androidx.media3:media3-ui:1.2.1")
 
+    // ML Kit for object detection (ball tracking)
+    implementation("com.google.mlkit:object-detection:17.0.1")
+    implementation("com.google.mlkit:object-detection-custom:17.0.1")
+
     // JSON serialization
     implementation("com.google.code.gson:gson:2.10.1")
 

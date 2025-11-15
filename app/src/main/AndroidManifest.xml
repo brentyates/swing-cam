@@ -52,6 +52,13 @@
             android:exported="false"
             android:parentActivityName=".MainActivity" />
 
+        <activity
+            android:name=".VideoPlayerActivity"
+            android:exported="false"
+            android:configChanges="orientation|screenSize"
+            android:parentActivityName=".RecordingsActivity"
+            android:theme="@style/Theme.SwingCam" />
+
         <!-- Foreground service for HTTP server -->
         <service
             android:name=".server.HttpServerService"

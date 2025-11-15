@@ -128,15 +128,10 @@ class RecordingsActivity : AppCompatActivity() {
                 return
             }
 
-            val videoUri = FileProvider.getUriForFile(
-                this,
-                "${packageName}.fileprovider",
-                videoFile
-            )
-
-            val intent = Intent(Intent.ACTION_VIEW).apply {
-                setDataAndType(videoUri, "video/mp4")
-                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            // Launch our custom video player with drawing and ball tracking features
+            val intent = Intent(this, VideoPlayerActivity::class.java).apply {
+                putExtra(VideoPlayerActivity.EXTRA_VIDEO_PATH, recording.filePath)
+                putExtra(VideoPlayerActivity.EXTRA_VIDEO_FILENAME, recording.filename)
             }
 
             startActivity(intent)
