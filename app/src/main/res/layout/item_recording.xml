@@ -62,6 +62,18 @@
             android:padding="6dp" />
 
         <ImageButton
+            android:id="@+id/shareButton"
+            android:layout_width="60dp"
+            android:layout_height="36dp"
+            android:src="@drawable/ic_share"
+            android:background="@drawable/button_rounded_blue"
+            android:layout_marginEnd="8dp"
+            android:contentDescription="Share recording"
+            android:scaleType="centerInside"
+            android:tint="#FFFFFF"
+            android:padding="6dp" />
+
+        <ImageButton
             android:id="@+id/deleteButton"
             android:layout_width="60dp"
             android:layout_height="36dp"

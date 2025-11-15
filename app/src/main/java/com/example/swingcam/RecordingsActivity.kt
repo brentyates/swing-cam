@@ -74,6 +74,7 @@ class RecordingsActivity : AppCompatActivity() {
     private fun setupRecordingsList() {
         adapter = RecordingsAdapter(
             onPlay = { recording -> playRecording(recording) },
+            onShare = { recording -> shareRecording(recording) },
             onDelete = { recording -> deleteRecording(recording) }
         )
 
@@ -145,6 +146,49 @@ class RecordingsActivity : AppCompatActivity() {
         }
     }
 
+    private fun shareRecording(recording: RecordingMetadata) {
+        try {
+            val videoFile = File(recording.filePath)
+            if (!videoFile.exists()) {
+                Toast.makeText(this, "Video file not found", Toast.LENGTH_SHORT).show()
+                return
+            }
+
+            val videoUri = FileProvider.getUriForFile(
+                this,
+                "${packageName}.fileprovider",
+                videoFile
+            )
+
+            val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                type = "video/mp4"
+                putExtra(Intent.EXTRA_STREAM, videoUri)
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+
+                // Add optional text with shot metadata
+                recording.shotMetadata?.let { shotMetadata ->
+                    val shareText = buildString {
+                        append("Golf Swing - ${recording.timestamp}\n")
+                        shotMetadata.ballData?.let { ball ->
+                            ball.ballSpeed?.let { append("\nBall Speed: ${String.format("%.1f", it)} mph") }
+                            ball.carryDistance?.let { append("\nCarry: ${String.format("%.0f", it)} yds") }
+                        }
+                        shotMetadata.clubData?.let { club ->
+                            club.clubType?.let { append("\nClub: $it") }
+                        }
+                    }
+                    if (shareText.isNotBlank()) {
+                        putExtra(Intent.EXTRA_TEXT, shareText)
+                    }
+                }
+            }
+
+            startActivity(Intent.createChooser(shareIntent, "Share Golf Swing"))
+        } catch (e: Exception) {
+            Toast.makeText(this, "Failed to share video: ${e.message}", Toast.LENGTH_SHORT).show()
+        }
+    }
+
     private fun deleteRecording(recording: RecordingMetadata) {
         AlertDialog.Builder(this)
             .setTitle("Delete Recording")
@@ -170,6 +214,7 @@ class RecordingsActivity : AppCompatActivity() {
 
 class RecordingsAdapter(
     private val onPlay: (RecordingMetadata) -> Unit,
+    private val onShare: (RecordingMetadata) -> Unit,
     private val onDelete: (RecordingMetadata) -> Unit
 ) : RecyclerView.Adapter<RecordingsAdapter.ViewHolder>() {
 
@@ -272,6 +317,10 @@ class RecordingsAdapter(
 
             binding.playButton.setOnClickListener {
                 onPlay(recording)
+            }
+
+            binding.shareButton.setOnClickListener {
+                onShare(recording)
             }
 
             binding.deleteButton.setOnClickListener {
