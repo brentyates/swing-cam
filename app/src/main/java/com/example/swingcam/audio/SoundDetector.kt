@@ -7,13 +7,12 @@ import android.util.Log
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlin.math.abs
-import kotlin.math.cos
-import kotlin.math.PI
 import kotlin.math.sqrt
 
 /**
@@ -48,7 +47,7 @@ class SoundDetector(private val config: Config = Config()) {
     )
 
     private var audioRecord: AudioRecord? = null
-    private val scope = CoroutineScope(Dispatchers.IO)
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private var monitoringJob: Job? = null
 
     var onSoundDetected: ((amplitude: Double) -> Unit)? = null
@@ -163,8 +162,9 @@ class SoundDetector(private val config: Config = Config()) {
                     // Check if amplitude exceeds threshold
                     if (normalizedAmplitude > config.threshold) {
                         // Apply frequency filtering if enabled
+                        var highFreqRatio = 0.0
                         val passesFrequencyFilter = if (config.enableFrequencyFiltering) {
-                            val highFreqRatio = calculateHighFrequencyRatio(buffer, bytesRead)
+                            highFreqRatio = calculateHighFrequencyRatio(buffer, bytesRead)
                             val passes = highFreqRatio > config.highFreqThreshold
 
                             if (config.enableLogging && !passes) {
@@ -185,7 +185,7 @@ class SoundDetector(private val config: Config = Config()) {
 
                                 if (config.enableLogging) {
                                     val freqInfo = if (config.enableFrequencyFiltering) {
-                                        ", highFreq=${"%.3f".format(calculateHighFrequencyRatio(buffer, bytesRead))}"
+                                        ", highFreq=${"%.3f".format(highFreqRatio)}"
                                     } else ""
                                     Log.i(TAG, "Impact detected! Amplitude: ${"%.3f".format(normalizedAmplitude)}$freqInfo")
                                 }
