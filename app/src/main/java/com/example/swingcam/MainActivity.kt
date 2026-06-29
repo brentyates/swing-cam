@@ -13,9 +13,6 @@ import android.util.Log
 import android.view.View
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
-import androidx.camera.core.CameraSelector
-import androidx.camera.core.Preview
-import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
@@ -31,8 +28,10 @@ import com.example.swingcam.databinding.ActivityMainBinding
 import com.example.swingcam.server.HttpServerService
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import java.io.File
+import kotlin.coroutines.resume
 
 class MainActivity : AppCompatActivity() {
 
@@ -226,78 +225,52 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
+        // Runs on Dispatchers.Main.immediate. setupCamera() offloads its blocking work
+        // internally, so the whole flow is a single linear sequence: show preview ->
+        // wait for layout -> bind camera -> reflect ready state. Previously the
+        // "ready / play last recording" step was duplicated and ran before setup
+        // completed, racing the camera binding.
         lifecycleScope.launch {
             try {
-                // Ensure camera preview is visible before setup
-                withContext(Dispatchers.Main) {
-                    binding.cameraPreview.visibility = View.VISIBLE
-                    binding.playerView.visibility = View.GONE
-                    isShowingReplay = false
+                binding.cameraPreview.visibility = View.VISIBLE
+                binding.playerView.visibility = View.GONE
+                isShowingReplay = false
+                binding.cameraPreview.requestLayout()
 
-                    // Request layout to ensure PreviewView is measured
-                    binding.cameraPreview.requestLayout()
-                    Log.d(TAG, "Camera preview view made visible")
-                }
+                // Wait for the PreviewView to be laid out before binding the camera
+                awaitLayout(binding.cameraPreview)
 
-                // Wait for PreviewView to be laid out
-                withContext(Dispatchers.Main) {
-                    binding.cameraPreview.post {
-                        lifecycleScope.launch {
-                            try {
-                                cameraManager.setupCamera()
-                                Log.d(TAG, "Camera setup completed successfully")
+                cameraManager.setupCamera()
+                Log.d(TAG, "Camera setup completed successfully")
 
-                                withContext(Dispatchers.Main) {
-                                    binding.statusText.text = getString(R.string.ready)
-                                    binding.recordButton.isEnabled = true
+                binding.statusText.text = getString(R.string.ready)
+                binding.recordButton.isEnabled = true
 
-                                    // Check if there's a last recording to show
-                                    val lastRecording = repository.getAllRecordings().firstOrNull()
-                                    if (lastRecording != null) {
-                                        Log.d(TAG, "Found last recording, playing inline")
-                                        playRecordingInline(lastRecording)
-                                    }
-                                }
-                            } catch (e: Exception) {
-                                Log.e(TAG, "Camera setup failed", e)
-                                withContext(Dispatchers.Main) {
-                                    binding.statusText.text = "Camera error"
-                                    Toast.makeText(
-                                        this@MainActivity,
-                                        "Camera setup failed: ${e.message}",
-                                        Toast.LENGTH_LONG
-                                    ).show()
-                                }
-                            }
-                        }
-                    }
-                }
-
-                withContext(Dispatchers.Main) {
-                    binding.statusText.text = getString(R.string.ready)
-                    binding.recordButton.isEnabled = true
-
-                    // Check if there's a last recording to show
-                    val lastRecording = repository.getAllRecordings().firstOrNull()
-                    if (lastRecording != null) {
-                        Log.d(TAG, "Found last recording, playing inline")
-                        playRecordingInline(lastRecording)
-                    } else {
-                        Log.d(TAG, "No last recording, showing live camera preview")
-                    }
+                // Show the most recent recording if one exists, otherwise keep live preview
+                val lastRecording = repository.getAllRecordings().firstOrNull()
+                if (lastRecording != null) {
+                    Log.d(TAG, "Found last recording, playing inline")
+                    playRecordingInline(lastRecording)
+                } else {
+                    Log.d(TAG, "No last recording, showing live camera preview")
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Camera initialization failed", e)
-                withContext(Dispatchers.Main) {
-                    Toast.makeText(
-                        this@MainActivity,
-                        "Camera initialization failed",
-                        Toast.LENGTH_SHORT
-                    ).show()
-                }
+                binding.statusText.text = "Camera error"
+                Toast.makeText(
+                    this@MainActivity,
+                    "Camera setup failed: ${e.message}",
+                    Toast.LENGTH_LONG
+                ).show()
             }
         }
     }
+
+    /** Suspends until [view] has completed a layout pass. */
+    private suspend fun awaitLayout(view: View) =
+        suspendCancellableCoroutine<Unit> { cont ->
+            view.post { if (cont.isActive) cont.resume(Unit) }
+        }
 
     private fun showCameraPreview() {
         isShowingReplay = false

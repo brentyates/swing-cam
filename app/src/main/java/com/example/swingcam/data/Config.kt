@@ -1,5 +1,6 @@
 package com.example.swingcam.data
 
+import android.util.Log
 import com.google.gson.Gson
 import java.io.File
 
@@ -12,14 +13,17 @@ data class Config(
     val postShotDelay: Int = 500  // Delay in milliseconds after shot detection before stopping recording
 ) {
     companion object {
+        private const val TAG = "Config"
         private const val CONFIG_FILENAME = "config.json"
+        private val gson = Gson()
 
         fun load(filesDir: File): Config {
             val configFile = File(filesDir, CONFIG_FILENAME)
             return if (configFile.exists()) {
                 try {
-                    Gson().fromJson(configFile.readText(), Config::class.java)
+                    gson.fromJson(configFile.readText(), Config::class.java) ?: Config()
                 } catch (e: Exception) {
+                    Log.e(TAG, "Failed to parse $CONFIG_FILENAME, using defaults", e)
                     Config() // Return default if parsing fails
                 }
             } else {
@@ -29,7 +33,7 @@ data class Config(
 
         fun save(filesDir: File, config: Config) {
             val configFile = File(filesDir, CONFIG_FILENAME)
-            configFile.writeText(Gson().toJson(config))
+            configFile.writeText(gson.toJson(config))
         }
     }
 }

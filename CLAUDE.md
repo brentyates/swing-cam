@@ -23,11 +23,11 @@ Project documentation is organized as follows:
 
 - **Language**: Kotlin
 - **Min SDK**: 26 (Android 8.0)
-- **Target SDK**: 34 (Android 14)
+- **Target SDK**: 35 (Android 15)
 - **Build System**: Gradle with Kotlin DSL
 - **Camera**: CameraX Video API (androidx.camera)
 - **HTTP Server**: Ktor (embedded Netty server on port 8080)
-- **Video Playback**: ExoPlayer (androidx.media3) - planned
+- **Video Playback**: ExoPlayer (androidx.media3) - inline replay in MainActivity
 - **JSON**: Gson
 - **Architecture**: Single Activity with ViewBinding
 
@@ -115,7 +115,7 @@ adb shell run-as com.example.swingcam ls files/recordings
    - CRUD operations for recordings and metadata
    - Loads/saves JSON metadata files
 
-5. **RecordingAdapter.kt** - RecyclerView adapter
+5. **RecordingsAdapter** (in RecordingsActivity.kt) - RecyclerView adapter
    - Displays list of recordings
    - Play/delete buttons per recording
 
@@ -133,7 +133,7 @@ adb shell run-as com.example.swingcam ls files/recordings
 **Config.kt**
 ```kotlin
 data class Config(
-    val duration: Int = 5,  // Recording duration in seconds
+    val duration: Int = 2,  // Recording duration in seconds
     val postShotDelay: Int = 500  // Delay after shot detection before stopping
 )
 ```
@@ -469,14 +469,14 @@ The web interface is automatically served when the HTTP server is running:
 
 ### Ktor
 
-- Version: 2.3.7
+- Version: 3.0.3
 - Lightweight embedded server
 - No external web server required
 - Netty engine for performance
 
 ### CameraX
 
-- Version: 1.3.1
+- Version: 1.4.1
 - Modern camera API (replaces Camera2)
 - Lifecycle-aware
 - Consistent API across devices
@@ -484,15 +484,15 @@ The web interface is automatically served when the HTTP server is running:
 
 ### ExoPlayer (media3)
 
-- Version: 1.2.1
+- Version: 1.4.1
 - Modern replacement for MediaPlayer
 - Better format support
 - Adaptive streaming capabilities
-- Currently included but not used (future playback feature)
+- Used for inline replay in MainActivity (loops most recent recording)
 
 ### Gson
 
-- Version: 2.10.1
+- Version: 2.11.0
 - JSON serialization/deserialization
 - Used for config.json and metadata files
 - Simple, reliable

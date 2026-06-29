@@ -1,5 +1,6 @@
 package com.example.swingcam.data
 
+import android.util.Log
 import com.google.gson.Gson
 import java.io.File
 import java.text.SimpleDateFormat
@@ -19,10 +20,15 @@ data class RecordingMetadata(
     val shotMetadata: ShotMetadata? = null  // Optional shot data from launch monitor
 ) {
     companion object {
-        private val dateFormat = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US)
+        private const val TAG = "RecordingMetadata"
+        private val gson = Gson()
 
+        // SimpleDateFormat is not thread-safe, so instantiate per call rather than
+        // sharing a companion-level instance across threads. Millisecond precision
+        // avoids filename collisions when two recordings start within the same second.
         fun generateFilename(): String {
-            return "swing_${dateFormat.format(Date())}.mp4"
+            val stamp = SimpleDateFormat("yyyyMMdd_HHmmss_SSS", Locale.US).format(Date())
+            return "swing_$stamp.mp4"
         }
 
         fun generateTimestamp(): String {
@@ -40,13 +46,14 @@ data class RecordingMetadata(
         }
 
         fun save(metadata: RecordingMetadata, metadataFile: File) {
-            metadataFile.writeText(Gson().toJson(metadata))
+            metadataFile.writeText(gson.toJson(metadata))
         }
 
         fun load(metadataFile: File): RecordingMetadata? {
             return try {
-                Gson().fromJson(metadataFile.readText(), RecordingMetadata::class.java)
+                gson.fromJson(metadataFile.readText(), RecordingMetadata::class.java)
             } catch (e: Exception) {
+                Log.e(TAG, "Failed to load metadata from ${metadataFile.name}", e)
                 null
             }
         }

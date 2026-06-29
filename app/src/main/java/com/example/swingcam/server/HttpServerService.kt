@@ -35,7 +35,8 @@ import java.net.NetworkInterface
  */
 class HttpServerService : Service() {
 
-    private var server: NettyApplicationEngine? = null
+    // Ktor 3: embeddedServer returns EmbeddedServer<>, not the engine type used in Ktor 2.
+    private var server: EmbeddedServer<*, *>? = null
     private val serviceScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
     var serverCallback: ServerCallback? = null
@@ -156,7 +157,7 @@ class HttpServerService : Service() {
                             val callback = serverCallback
                             val filename = call.parameters["filename"]
 
-                            if (callback == null || filename == null) {
+                            if (callback == null || filename == null || !isValidRecordingFilename(filename)) {
                                 call.respond(HttpStatusCode.BadRequest,
                                     mapOf("error" to "Invalid request"))
                                 return@get
@@ -225,7 +226,7 @@ class HttpServerService : Service() {
                             val callback = serverCallback
                             val filename = call.parameters["filename"]
 
-                            if (callback != null && filename != null) {
+                            if (callback != null && filename != null && isValidRecordingFilename(filename)) {
                                 val success = callback.deleteRecording(filename)
                                 if (success) {
                                     call.respond(mapOf("success" to true))
@@ -361,7 +362,7 @@ class HttpServerService : Service() {
                             val callback = serverCallback
                             val filename = call.parameters["filename"]
 
-                            if (callback == null || filename == null) {
+                            if (callback == null || filename == null || !isValidRecordingFilename(filename)) {
                                 call.respond(HttpStatusCode.BadRequest,
                                     mapOf("error" to "Invalid request"))
                                 return@patch
@@ -453,6 +454,15 @@ class HttpServerService : Service() {
             .build()
     }
 
+    /**
+     * Validates a client-supplied recording filename to prevent path traversal.
+     * The server binds to 0.0.0.0 with no auth, so any filename that reaches the
+     * filesystem must be a bare name (no separators, no "..").
+     */
+    private fun isValidRecordingFilename(filename: String): Boolean {
+        return SAFE_FILENAME_REGEX.matches(filename)
+    }
+
     private fun getLocalIpAddress(): String {
         try {
             val interfaces = NetworkInterface.getNetworkInterfaces()
@@ -478,5 +488,8 @@ class HttpServerService : Service() {
         private const val CHANNEL_ID = "swingcam_server_channel"
         private const val NOTIFICATION_ID = 1
         const val PORT = 8080
+
+        // Bare filename ending in .mp4 (no path separators or "..") to block traversal
+        private val SAFE_FILENAME_REGEX = Regex("^[A-Za-z0-9_-]+\\.mp4$")
     }
 }

@@ -23,10 +23,12 @@ import androidx.lifecycle.LifecycleOwner
 import com.example.swingcam.data.Config
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.io.ByteArrayOutputStream
 import java.io.File
 import java.util.concurrent.Executors
@@ -56,17 +58,26 @@ class CameraManager(
     private val executor = Executors.newSingleThreadExecutor()
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
+    // Auto-stop timer for regular (duration-bounded) recordings
+    private var autoStopJob: Job? = null
+
     // Cached preview frame for web interface
     @Volatile
     private var cachedPreviewFrame: ByteArray? = null
 
+    // Mutated from the CameraX executor thread and read from the main/Ktor threads,
+    // so these must be @Volatile for cross-thread visibility.
+    @Volatile
     var isRecording = false
         private set
 
     // Launch monitor state
+    @Volatile
     var lmState = LMState.IDLE
         private set
+    @Volatile
     private var lmTempFile: File? = null
+    @Volatile
     private var lmStartTime: Long = 0
     private val maxLMDuration = 60  // Maximum 60 seconds of continuous recording
 
@@ -78,10 +89,13 @@ class CameraManager(
 
     suspend fun setupCamera() {
         Log.d(TAG, "Starting camera setup")
-        val cameraProviderFuture = ProcessCameraProvider.getInstance(context)
 
         try {
-            val cameraProvider = cameraProviderFuture.get()
+            // Resolving the provider blocks until CameraX initializes; keep it off the
+            // main thread. Binding below must still happen on the caller's main context.
+            val cameraProvider = withContext(Dispatchers.IO) {
+                ProcessCameraProvider.getInstance(context).get()
+            }
             Log.d(TAG, "Got camera provider")
 
             // Use highest quality available for slow-motion
@@ -139,7 +153,7 @@ class CameraManager(
         }
     }
 
-    suspend fun startRecording(outputFile: File, config: Config) {
+    fun startRecording(outputFile: File, config: Config) {
         if (isRecording) {
             Log.w(TAG, "Already recording")
             return
@@ -159,9 +173,14 @@ class CameraManager(
 
         Log.d(TAG, "Recording started: ${outputFile.name}")
 
-        // Auto-stop after configured duration
-        delay((config.duration * 1000).toLong())
-        stopRecording()
+        // Auto-stop after configured duration. Scheduled independently so callers
+        // (e.g. the HTTP /api/record handler) return immediately instead of blocking
+        // for the full recording duration before acknowledging.
+        autoStopJob?.cancel()
+        autoStopJob = scope.launch {
+            delay((config.duration * 1000).toLong())
+            stopRecording()
+        }
     }
 
     private fun createRecordingListener(outputFile: File): Consumer<VideoRecordEvent> {
@@ -195,6 +214,8 @@ class CameraManager(
             return
         }
 
+        autoStopJob?.cancel()
+        autoStopJob = null
         activeRecording?.stop()
         activeRecording = null
         Log.d(TAG, "Recording stopped")
